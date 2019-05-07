@@ -105,7 +105,7 @@ def classify_face(engine, sendSocket):
             image.save('crop', 'JPEG')
             # see https://coral.withgoogle.com/docs/reference/edgetpu.classification.engine/
             results = engine.ClassifyWithImage(
-                image, threshold=0.75, top_k=3, resample=Image.BILINEAR)
+                image, threshold=0.6, top_k=3, resample=Image.BILINEAR)
 
             logger.debug('time to classify face: %d\n' %
                          (time.time() - start_s) * 1000)
@@ -114,8 +114,10 @@ def classify_face(engine, sendSocket):
                 logger.info(results)
 
                 # sort by confidence, take the highest, return the label
-                highest_confidence_label_id = sorted(
-                    results, key=lambda result: result[1], reverse=True)[0][0]
+                highest_confidence_result = sorted(
+                    results, key=lambda result: result[1], reverse=True)[0]
+                highest_confidence_label_id = highest_confidence_result[0]
+                highest_confidence_interval = highest_confidence_result[1]
 
                 try:
 
@@ -123,7 +125,8 @@ def classify_face(engine, sendSocket):
                     #     map(lambda result: face_class_label_ids_to_names[result[0]], results))
 
                     message = json.dumps({
-                        'classification': face_class_label_ids_to_names[highest_confidence_label_id]
+                        'classification': face_class_label_ids_to_names[highest_confidence_label_id],
+                        'confidence': str(highest_confidence_interval)
                     })
                     sendSocket = send_with_retry(sendSocket, message)
                 except KeyError:

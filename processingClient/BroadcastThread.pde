@@ -107,10 +107,10 @@ class BroadcastThread extends Thread {
     BufferedImage bimg = new BufferedImage(IMG_SIZE, IMG_SIZE, BufferedImage.TYPE_INT_RGB);
     img.loadPixels();
 
-    int x = Math.round(box[0]);
-    int y = Math.round(box[1]);
-    int w = Math.round(box[2]) - x;
-    int h = Math.round(box[3]) - y;
+    int x = Math.round(cropBox[0]);
+    int y = Math.round(cropBox[1]);
+    int w = Math.round(cropBox[2]) - x;
+    int h = Math.round(cropBox[3]) - y;
 
     PImage croppedImg = img.get(x, y, w, h);
     croppedImg.loadPixels();

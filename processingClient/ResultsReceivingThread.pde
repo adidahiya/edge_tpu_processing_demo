@@ -17,7 +17,8 @@ class ResultsReceivingThread extends Thread {
   String lockState = "locked";
 
   float[][] boxes = new float[MAX_DETECTED_OBJECTS][4];
-  String[] labels = new String[MAX_DETECTED_OBJECTS];
+  String[] labels = new String[1];
+  Double[] confidences = new Double[1];
   int numDetections = 0;
   String faceClassification;
 
@@ -50,6 +51,9 @@ class ResultsReceivingThread extends Thread {
   void parseResults(JSONObject resultsJson) {
     JSONArray detections = resultsJson.getJSONArray("detection");
     String classification = resultsJson.getString("classification");
+    Double confidence; // declare empty variable since confidence may be null or empty
+
+    
 
     numDetections = 0;
 
@@ -71,8 +75,14 @@ class ResultsReceivingThread extends Thread {
     }
 
     if (classification != null && classification != "") {
+      //if classification, should be confidence as well
+      confidence = Double.parseDouble(resultsJson.getString("confidence"));
       // faceClassification = classification.getString(0);
+      labels[0] = classification;
+      confidences[0] = confidence;
       println("got classification! face recognized as: " + classification);
+      println("confidence: " + confidence);
+  
     }
   }
 
@@ -104,6 +114,10 @@ class ResultsReceivingThread extends Thread {
 
   String[] getLabels() {
     return labels;
+  }
+  
+  Double[] getConfidences() {
+    return confidences;
   }
 
   String getClassification() {

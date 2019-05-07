@@ -1,6 +1,8 @@
 import gohai.glvideo.*;
 GLCapture video;
 
+PShader effect;
+
 // CONFIGURATION
 // video capture dimensions
 int captureW = 640;
@@ -22,6 +24,9 @@ boolean drawResults = true;
 
 PGraphics inputImage;
 PGraphics resultsImage;
+
+String label;
+Double confidence;
 
 float aspect = captureW * 1.0 / captureH;
 
@@ -63,6 +68,9 @@ void setup() {
   video = new GLCapture(this, devices[0], captureW, captureH, getFps());
 
   video.start();
+  
+  effect = loadShader("../shaders/pixelate.glsl");
+  effect.set("pixels", 600, 600);
 }
 
 PImage captureAndScaleInputImage() {
@@ -83,34 +91,39 @@ void updateResultsImage() {
   int numDetections = receiverThread.getNumDetections();
   float[][] boxes = receiverThread.getBoxes();
   String[] labels = receiverThread.getLabels();
+  Double[] confidences = receiverThread.getConfidences();
+  label = labels[0];
+  confidence = confidences[0];
+  println("labels: ", labels[0]);
+  println("confidences: ", confidences[0]);
+  //resultsImage.beginDraw();
+  //resultsImage.clear();
+  //resultsImage.noFill();
+  //resultsImage.stroke(#ff0000);
+  //resultsImage.strokeWeight(2);
+  //resultsImage.textSize(18);
 
-  resultsImage.beginDraw();
-  resultsImage.clear();
-  resultsImage.noFill();
-  resultsImage.stroke(#ff0000);
-  resultsImage.strokeWeight(2);
-  resultsImage.textSize(18);
+  //for(int i = 0; i < numDetections; i++) {
+  //  float[] box = boxes[i];
 
-  for(int i = 0; i < numDetections; i++) {
-    float[] box = boxes[i];
+  //  float scaleWH = captureW * 1.0 / inputW;
 
-    float scaleWH = captureW * 1.0 / inputW;
+  //  float x1 = padAndScale(box[0], paddingW, scaleWH);
+  //  float y1 = padAndScale(box[1], paddingH, scaleWH);
+  //  float x2 = padAndScale(box[2], paddingW, scaleWH);
+  //  float y2 = padAndScale(box[3], paddingH, scaleWH);
 
-    float x1 = padAndScale(box[0], paddingW, scaleWH);
-    float y1 = padAndScale(box[1], paddingH, scaleWH);
-    float x2 = padAndScale(box[2], paddingW, scaleWH);
-    float y2 = padAndScale(box[3], paddingH, scaleWH);
+  //  resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
+  //  if (label != null) {
+  //   println("label: ", label);
+  //   println("confidence", confidence);
+  //   resultsImage.text(label, x1, y1);
+  // }
 
-    String label = labels[i];
+  //}
 
-    resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
 
-    if (label != null) {
-      resultsImage.text(label, x1, y1);
-    }
-  }
-
-  resultsImage.endDraw();
+ // resultsImage.endDraw();
 }
 
 void draw() {
@@ -137,7 +150,15 @@ void draw() {
         broadcastThread.disableCropToBroadcast();
       }
     }
-    image(resultsImage, 0, 0, outputW, outputH);
+    //image(resultsImage, 0, 0, outputW, outputH);
+    if (confidence != null && confidence > 0) {
+      //filter(THRESHOLD, 1.0 - confidence.floatValue());
+       int shaderValue = (int)(confidence*200);
+       println("shader value: ", shaderValue);
+       effect.set("pixels", shaderValue, shaderValue);
+    }
+       shader(effect);
+
   }
 }
 
