@@ -53,7 +53,7 @@ class ResultsReceivingThread extends Thread {
     String classification = resultsJson.getString("classification");
     Double confidence; // declare empty variable since confidence may be null or empty
 
-    
+
 
     numDetections = 0;
 
@@ -75,14 +75,14 @@ class ResultsReceivingThread extends Thread {
     }
 
     if (classification != null && classification != "") {
-      //if classification, should be confidence as well
+      // if classification, should be confidence as well
       confidence = Double.parseDouble(resultsJson.getString("confidence"));
       // faceClassification = classification.getString(0);
       labels[0] = classification;
       confidences[0] = confidence;
       println("got classification! face recognized as: " + classification);
       println("confidence: " + confidence);
-  
+
     }
   }
 
@@ -115,7 +115,7 @@ class ResultsReceivingThread extends Thread {
   String[] getLabels() {
     return labels;
   }
-  
+
   Double[] getConfidences() {
     return confidences;
   }

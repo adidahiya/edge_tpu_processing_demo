@@ -14,7 +14,7 @@ void setup() {
   video = new GLCapture(this, devices[0], 640, 480, 24);
   video.start();
 
-  effect = loadShader("../shaders/pixelate.glsl");
+  effect = loadShader("./pixelate.glsl");
 }
 
 void draw() {
@@ -26,6 +26,6 @@ void draw() {
   println("mouse y: ", mouseY);
   effect.set("pixels", 0.1 * mouseX, 0.1 * mouseY);
 
-  image(video, 0, 0);  
+  image(video, 0, 0);
   shader(effect);
 }

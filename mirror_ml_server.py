@@ -88,6 +88,8 @@ def classify_face(engine, sendSocket):
     receiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     receiveSocket.bind((UDP_IP, CLASSIFICATION_RECEIVE_PORT))
 
+    CLASSIFICATION_THRESHOLD = 0.6
+
     while 1:
         logger.info('waiting for packet')
         data, _ = receiveSocket.recvfrom(66507)
@@ -105,7 +107,7 @@ def classify_face(engine, sendSocket):
             image.save('crop', 'JPEG')
             # see https://coral.withgoogle.com/docs/reference/edgetpu.classification.engine/
             results = engine.ClassifyWithImage(
-                image, threshold=0.6, top_k=3, resample=Image.BILINEAR)
+                image, threshold=CLASSIFICATION_THRESHOLD, top_k=3, resample=Image.BILINEAR)
 
             logger.debug('time to classify face: %d\n' %
                          (time.time() - start_s) * 1000)
@@ -116,24 +118,21 @@ def classify_face(engine, sendSocket):
                 # sort by confidence, take the highest, return the label
                 highest_confidence_result = sorted(
                     results, key=lambda result: result[1], reverse=True)[0]
-                highest_confidence_label_id = highest_confidence_result[0]
-                highest_confidence_interval = highest_confidence_result[1]
+
+                [label_id, confidence_float] = highest_confidence_result
 
                 try:
-
-                    # output = list(
-                    #     map(lambda result: face_class_label_ids_to_names[result[0]], results))
-
                     message = json.dumps({
-                        'classification': face_class_label_ids_to_names[highest_confidence_label_id],
-                        'confidence': str(highest_confidence_interval)
+                        'classification': face_class_label_ids_to_names[label_id],
+                        'confidence': str(confidence_float)
                     })
                     sendSocket = send_with_retry(sendSocket, message)
                 except KeyError:
                     logger.error(
-                        'classified label "%d" not recognized' % highest_confidence_label_id)
+                        'classified label "%d" not recognized' % label_id)
             else:
-                logger.debug('could not classify image')
+                logger.debug('could not classify image at threshold %f' %
+                             CLASSIFICATION_THRESHOLD)
 
 
 def start_server():
