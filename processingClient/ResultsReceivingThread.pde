@@ -16,11 +16,12 @@ class ResultsReceivingThread extends Thread {
   // unlocked -> unlocking with approved face -> unlocked
   String lockState = "locked";
 
-  float[][] boxes = new float[MAX_DETECTED_OBJECTS][4];
-  String[] labels = new String[1];
-  Double[] confidences = new Double[1];
+  float[][] detectionBoxes = new float[MAX_DETECTED_OBJECTS][4];
+  String[] detectionLabels = new String[1];
   int numDetections = 0;
-  String faceClassification;
+
+  String classificationLabel;
+  Double classificationConfidence;
 
   ResultsReceivingThread(PApplet parent) {
     // create new tcp client
@@ -51,9 +52,7 @@ class ResultsReceivingThread extends Thread {
   void parseResults(JSONObject resultsJson) {
     JSONArray detections = resultsJson.getJSONArray("detection");
     String classification = resultsJson.getString("classification");
-    Double confidence; // declare empty variable since confidence may be null or empty
-
-
+    // Double confidence; // declare empty variable since confidence may be null or empty
 
     numDetections = 0;
 
@@ -61,14 +60,14 @@ class ResultsReceivingThread extends Thread {
       for (int i = 0; i < detections.size() && i < MAX_DETECTED_OBJECTS; i++) {
         JSONObject result = detections.getJSONObject(i);
 
-        labels[i] = result.getString("label");
+        detectionLabels[i] = result.getString("label");
 
         JSONArray box = result.getJSONArray("box");
 
-        boxes[i][0] = box.getFloat(0);
-        boxes[i][1] = box.getFloat(1);
-        boxes[i][2] = box.getFloat(2);
-        boxes[i][3] = box.getFloat(3);
+        detectionBoxes[i][0] = box.getFloat(0);
+        detectionBoxes[i][1] = box.getFloat(1);
+        detectionBoxes[i][2] = box.getFloat(2);
+        detectionBoxes[i][3] = box.getFloat(3);
 
         numDetections++;
       }
@@ -76,12 +75,11 @@ class ResultsReceivingThread extends Thread {
 
     if (classification != null && classification != "") {
       // if classification, should be confidence as well
-      confidence = Double.parseDouble(resultsJson.getString("confidence"));
-      // faceClassification = classification.getString(0);
-      labels[0] = classification;
-      confidences[0] = confidence;
-      println("got classification! face recognized as: " + classification);
-      println("confidence: " + confidence);
+      classificationConfidence = Double.parseDouble(resultsJson.getString("confidence"));
+      classificationLabel = classification;
+
+      println("got classification! face recognized as: " + classificationLabel);
+      println("confidence: " + classificationConfidence);
 
     }
   }
@@ -108,19 +106,19 @@ class ResultsReceivingThread extends Thread {
     return numDetections;
   }
 
-  float[][] getBoxes() {
-    return boxes;
+  float[][] getDetectionBoxes() {
+    return detectionBoxes;
   }
 
-  String[] getLabels() {
-    return labels;
+  String[] getDetectionLabels() {
+    return detectionLabels;
   }
 
-  Double[] getConfidences() {
-    return confidences;
+  Double getClassificationConfidence() {
+    return classificationConfidence;
   }
 
-  String getClassification() {
-    return faceClassification;
+  String getClassificationLabel() {
+    return classificationLabel;
   }
 }

@@ -1,7 +1,7 @@
 import gohai.glvideo.*;
 GLCapture video;
 
-PShader effect;
+PShader filterEffectShader;
 
 // CONFIGURATION
 // video capture dimensions
@@ -42,6 +42,8 @@ int defaultFps = 25;
 BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
 
+boolean USE_SHADER = false;
+
 
 void settings(){
   size(outputW, outputH, P2D);
@@ -69,8 +71,10 @@ void setup() {
 
   video.start();
 
-  effect = loadShader("../shaders/pixelate.glsl");
-  effect.set("pixels", 600, 600);
+  if (USE_SHADER) {
+    filterEffectShader = loadShader("../shaders/pixelate.glsl");
+    filterEffectShader.set("pixels", 600, 600);
+  }
 }
 
 PImage captureAndScaleInputImage() {
@@ -89,41 +93,52 @@ float padAndScale(float value, float padding, float scale) {
 
 void updateResultsImage() {
   int numDetections = receiverThread.getNumDetections();
-  float[][] boxes = receiverThread.getBoxes();
-  String[] labels = receiverThread.getLabels();
-  Double[] confidences = receiverThread.getConfidences();
+  float[][] boxes = receiverThread.getDetectionBoxes();
+  String[] labels = receiverThread.getDetectionLabels();
 
-  label = labels[0];
-  confidence = confidences[0];
-  println("labels: ", labels[0]);
-  println("confidences: ", confidences[0]);
+  String classificationLabel = receiverThread.getClassificationLabel();
+  Double classificationConfidence = receiverThread.getClassificationConfidence();
 
-  // resultsImage.beginDraw();
-  // resultsImage.clear();
-  // resultsImage.noFill();
-  // resultsImage.stroke(#ff0000);
-  // resultsImage.strokeWeight(2);
-  // resultsImage.textSize(18);
+  drawDetectionResultsToImage(boxes, labels);
 
-  // for (int i = 0; i < numDetections; i++) {
-  //   float[] box = boxes[i];
+  if (classificationLabel != null && classificationLabel != "") {
+    drawClassificationToImage(classificationLabel, classificationConfidence);
+  }
+}
 
-  //   float scaleWH = captureW * 1.0 / inputW;
+void drawDetectionResultsToImage(float[][] boxes, String[] labels) {
+  resultsImage.beginDraw();
+  resultsImage.clear();
+  resultsImage.noFill();
+  resultsImage.stroke(#ff0000);
+  resultsImage.strokeWeight(2);
+  resultsImage.textSize(18);
 
-  //   float x1 = padAndScale(box[0], paddingW, scaleWH);
-  //   float y1 = padAndScale(box[1], paddingH, scaleWH);
-  //   float x2 = padAndScale(box[2], paddingW, scaleWH);
-  //   float y2 = padAndScale(box[3], paddingH, scaleWH);
+  for (int i = 0; i < numDetections; i++) {
+    float[] box = boxes[i];
+    String label = labels[i];
 
-  //   resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
-  //   if (label != null) {
-  //     println("label: ", label);
-  //     println("confidence", confidence);
-  //     resultsImage.text(label, x1, y1);
-  //   }
-  // }
+    float scaleWH = captureW * 1.0 / inputW;
 
-  // resultsImage.endDraw();
+    float x1 = padAndScale(box[0], paddingW, scaleWH);
+    float y1 = padAndScale(box[1], paddingH, scaleWH);
+    float x2 = padAndScale(box[2], paddingW, scaleWH);
+    float y2 = padAndScale(box[3], paddingH, scaleWH);
+
+    resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
+
+    if (label != null) {
+      println("label: ", label);
+      // println("confidence", confidence);
+      resultsImage.text(label, x1, y1);
+    }
+  }
+
+  resultsImage.endDraw();
+}
+
+void drawClassificationToImage(String label, Double confidence) {
+  print("classified as " + label + " with confidence " + confidence);
 }
 
 void draw() {
@@ -152,16 +167,19 @@ void draw() {
       }
     }
 
-    //image(resultsImage, 0, 0, outputW, outputH);
-    if (confidence != null && confidence > 0) {
-      //filter(THRESHOLD, 1.0 - confidence.floatValue());
-       int shaderValue = (int) (confidence * 200);
-       println("shader value: ", shaderValue);
-       effect.set("pixels", shaderValue, shaderValue);
-    }
+    image(resultsImage, 0, 0, outputW, outputH);
 
-    // global shader API
-    shader(effect);
+    if (USE_SHADER) {
+      if (confidence != null && confidence > 0) {
+        //filter(THRESHOLD, 1.0 - confidence.floatValue());
+        int filterEffectParam = (int) (confidence * 200);
+        println("shader value: ", filterEffectParam);
+        filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
+      }
+
+      // global shader API
+      shader(filterEffectShader);
+    }
   }
 }
 
