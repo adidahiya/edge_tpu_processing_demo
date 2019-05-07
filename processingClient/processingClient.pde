@@ -15,8 +15,8 @@ int inputW = broadcastHost == "" ? 300 : captureW;
 int inputH = broadcastHost == "" ? 300 : captureH;
 
 // output dimensions
-int outputW = 640;
-int outputH = 480;
+int outputW = 480;
+int outputH = 640;
 
 // drawing config
 boolean debugInputImage = false;
@@ -99,14 +99,14 @@ void updateResultsImage() {
   String classificationLabel = receiverThread.getClassificationLabel();
   Double classificationConfidence = receiverThread.getClassificationConfidence();
 
-  drawDetectionResultsToImage(boxes, labels);
+  drawDetectionResultsToImage(numDetections, boxes, labels);
 
   if (classificationLabel != null && classificationLabel != "") {
     drawClassificationToImage(classificationLabel, classificationConfidence);
   }
 }
 
-void drawDetectionResultsToImage(float[][] boxes, String[] labels) {
+void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] labels) {
   resultsImage.beginDraw();
   resultsImage.clear();
   resultsImage.noFill();
@@ -155,11 +155,12 @@ void draw() {
 
   if (drawResults) {
     // Copy pixels into a PImage object and show on the screen
+    rotate(90);
     image(video, 0, 0, outputW, outputH);
 
     if (receiverThread.newResultsAvailable()) {
       updateResultsImage();
-      float[][] boxes = receiverThread.getBoxes();
+      float[][] boxes = receiverThread.getDetectionBoxes();
       if (boxes.length > 0) {
         broadcastThread.setCropToBroadcast(boxes[0]);
       } else {
