@@ -17,7 +17,7 @@ class ResultsReceivingThread extends Thread {
   String lockState = "locked";
 
   float[][] detectionBoxes = new float[MAX_DETECTED_OBJECTS][4];
-  String[] detectionLabels = new String[1];
+  String[] detectionLabels = new String[MAX_DETECTED_OBJECTS];
   int numDetections = 0;
 
   String classificationLabel;
@@ -57,6 +57,8 @@ class ResultsReceivingThread extends Thread {
     numDetections = 0;
 
     if (detections != null) {
+      clearDetectionLabels();
+
       for (int i = 0; i < detections.size() && i < MAX_DETECTED_OBJECTS; i++) {
         JSONObject result = detections.getJSONObject(i);
 
@@ -81,6 +83,12 @@ class ResultsReceivingThread extends Thread {
       println("got classification! face recognized as: " + classificationLabel);
       println("confidence: " + classificationConfidence);
 
+    }
+  }
+
+  void clearDetectionLabels() {
+    for (int i = 0; i < detectionLabels.length; i++) {
+      detectionLabels[i] = null;
     }
   }
 
