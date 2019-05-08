@@ -19,6 +19,7 @@ class BroadcastThread extends Thread {
   boolean running;
 
   float[] cropBox;
+  String classificationUuid;
 
   BroadcastThread() {
     //println("Host and port:", host, port);
@@ -43,7 +44,7 @@ class BroadcastThread extends Thread {
       }
 
       if (cropBox != null) {
-        broadcastImageCrop(lastImage);
+        broadcastImageCrop(lastImage, cropBox);
       }
     }
   }
@@ -53,11 +54,13 @@ class BroadcastThread extends Thread {
     newFrame = true;
   }
 
-  void disableCropToBroadcast() {
+  void disableClassificationBroadcast() {
+    classificationUuid = null;
     cropBox = null;
   }
 
-  void setCropToBroadcast(float[] box) {
+  void initClassificationRequest(String uuid, float[] box) {
+    classificationUuid = uuid;
     cropBox = box;
   }
 
@@ -66,9 +69,14 @@ class BroadcastThread extends Thread {
   // (This example doesn't use the library, but you can!)
   void broadcastFullImage(PImage img) {
     // We need a buffered image to do the JPG encoding
-    BufferedImage bimg = new BufferedImage(img.width,img.height, BufferedImage.TYPE_INT_RGB);
+    BufferedImage bimg = new BufferedImage(img.width, img.height, BufferedImage.TYPE_INT_RGB);
 
-    // Transfer pixels from localFrame to the BufferedImage
+    // compensate for parent app rotation, so we can send the right images to the ML classifier
+    imageMode(CENTER);
+    translate(img.width / 2, img.height / 2);
+    rotate(radians(-90));
+
+    // Transfer pixels from local frame to the BufferedImage
     img.loadPixels();
     bimg.setRGB(0, 0, img.width, img.height, img.pixels, 0, img.width);
 
@@ -97,10 +105,9 @@ class BroadcastThread extends Thread {
     } catch (Exception e) {
       e.printStackTrace();
     }
-
   }
 
-  void broadcastImageCrop(PImage img) {
+  void broadcastImageCrop(PImage img, float[] cropBox) {
     // image classification model has a fixed size
     int IMG_SIZE = 224;
 
@@ -116,6 +123,11 @@ class BroadcastThread extends Thread {
       println("bad w/h for crop box");
       return;
     }
+
+    // compensate for parent app rotation, so we can send the right images to the ML classifier
+    imageMode(CENTER);
+    translate(x + w / 2, y + h / 2);
+    rotate(radians(-90));
 
     PImage croppedImg = img.get(x, y, w, h);
     croppedImg.loadPixels();

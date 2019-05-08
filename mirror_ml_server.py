@@ -30,7 +30,7 @@ DETECTION_IMAGE_BUFFER_SIZE = 66507
 face_class_label_ids_to_names = {
     0: 'adi',
     1: 'brent',
-    2: 'unknown'
+    # 2: 'unknown', # required when using our custom models older than v4
 }
 
 logger = logging.getLogger(__name__)
@@ -71,7 +71,7 @@ def detect_face(engine, sendSocket):
 
             # see https://coral.withgoogle.com/docs/reference/edgetpu.detection.engine/
             results = engine.DetectWithImage(
-                image, threshold=0.25, keep_aspect_ratio=True, relative_coord=False, top_k=3)
+                image, threshold=0.50, keep_aspect_ratio=True, relative_coord=False, top_k=1)
 
             # logger.debug('time to detect faces: %d\n' %
             #              (time.time() - start_s) * 1000)

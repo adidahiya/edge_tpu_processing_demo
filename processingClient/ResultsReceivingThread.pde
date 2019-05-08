@@ -1,4 +1,5 @@
 import java.nio.charset.*;
+import java.util.UUID;
 import processing.net.*;
 
 static final int MAX_DETECTED_OBJECTS = 20;
@@ -12,6 +13,9 @@ class ResultsReceivingThread extends Thread {
 
   boolean running = false;
   boolean available = false;
+
+  String classificationRequestId;
+  boolean isClassifying = false;
 
   // unlocked -> unlocking with approved face -> unlocked
   String lockState = "locked";
@@ -80,9 +84,11 @@ class ResultsReceivingThread extends Thread {
       classificationConfidence = Double.parseDouble(resultsJson.getString("confidence"));
       classificationLabel = classification;
 
-      println("got classification! face recognized as: " + classificationLabel);
+      println("got classification for request id '" + classificationRequestId + "': " + classificationLabel);
       println("confidence: " + classificationConfidence);
-
+      println("");
+      isClassifying = false;
+      classificationRequestId = null;
     }
   }
 
@@ -128,5 +134,15 @@ class ResultsReceivingThread extends Thread {
 
   String getClassificationLabel() {
     return classificationLabel;
+  }
+
+  boolean initClassificationRequest(String id) {
+    classificationRequestId = id;
+    isClassifying = true;
+  }
+
+  // whether we are waiting for an image classification result
+  boolean isClassifying() {
+    return isClassifying;
   }
 }

@@ -8,8 +8,7 @@ PShader filterEffectShader;
 int captureW = 640;
 int captureH = 480;
 
-// the width and height of the input image for
-// object detection
+// the width and height of the input image for object detection
 // String broadcastHost = getRemoteBroadcastHost();
 int inputW = captureW;
 int inputH = captureH;
@@ -19,8 +18,9 @@ int outputW = 640;
 int outputH = 480;
 
 // drawing config
-boolean debugInputImage = false;
-boolean drawResults = true;
+boolean DEBUG_INPUT_IMAGE = false;
+boolean DRAW_RESULTS = true;
+boolean USE_SHADER = false;
 
 PGraphics inputImage;
 PGraphics resultsImage;
@@ -42,10 +42,7 @@ int defaultFps = 25;
 BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
 
-boolean USE_SHADER = false;
-
-
-void settings(){
+void settings() {
   int windowW = 480;
   int windowH = 640;
   size(windowW, windowH, P2D);
@@ -82,8 +79,7 @@ void setup() {
 PImage captureAndScaleInputImage() {
   inputImage.beginDraw();
   inputImage.background(0);
-  // draw video into input image, scaling while maintaining the
-  // aspect ratio
+  // draw video into input image, scaling while maintaining the aspect ratio
   inputImage.image(video, paddingW, paddingH, resizeW, resizeH);
   inputImage.endDraw();
   return inputImage.copy();
@@ -140,6 +136,7 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
 }
 
 void drawClassificationToImage(String label, Double confidence) {
+  // TODO: actually draw instead of printing
   print("classified as " + label + " with confidence " + confidence);
 }
 
@@ -151,32 +148,38 @@ void draw() {
     broadcastThread.update(captureAndScaleInputImage());
   }
 
-  if (debugInputImage) {
+  if (DEBUG_INPUT_IMAGE) {
     image(inputImage, 0, 0, inputW, inputH);
   }
 
-  if (drawResults) {
-    // Copy pixels into a PImage object and show on the screen
-    
-    int halfW = outputW / 2;
-    int halfH = outputH / 2;
+  // Copy pixels into a PImage object and show on the screen
+  int halfW = outputW / 2;
+  int halfH = outputH / 2;
 
-    translate(halfW, halfH);
-    rotate(radians(90));
-    imageMode(CENTER);
-    translate(120, 0);
-    image(video, -60, 80);
-    // image(video, -halfH, -halfW, halfH, halfW);
-    // translate(0, 0);
-    // image(video, 0, 0, -outputW, -outputH);
+  translate(halfW, halfH);
+  rotate(radians(90));
+  imageMode(CENTER);
+  translate(120, 0);
+  image(video, -60, 80);
+  // image(video, -halfH, -halfW, halfH, halfW);
+  // translate(0, 0);
+  // image(video, 0, 0, -outputW, -outputH);
 
+  if (DRAW_RESULTS) {
     if (receiverThread.newResultsAvailable()) {
       updateResultsImage();
       float[][] boxes = receiverThread.getDetectionBoxes();
-      if (boxes.length > 0) {
-        broadcastThread.setCropToBroadcast(boxes[0]);
+
+      if (receiverThread.isClassifying()) {
+        // skip, we'll use the next detection box when classifier API is available
+        println("classifier busy, discarded this face crop");
+        broadcastThread.disableClassificationBroadcast();
+      } else if (boxes.length > 0) {
+        String requestId = UUID.randomUUID().toString();
+        receiverThread.initClassificationRequest(requestId);
+        broadcastThread.initClassificationRequest(requestId, boxes[0]);
       } else {
-        broadcastThread.disableCropToBroadcast();
+        broadcastThread.disableClassificationBroadcast();
       }
     }
 
