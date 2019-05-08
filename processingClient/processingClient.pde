@@ -105,7 +105,9 @@ void updateResultsImage() {
   }
 
   if (classificationLabel != null && classificationLabel != "") {
-    drawClassificationToImage(classificationLabel, classificationConfidence);
+    drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
+  } else {
+    drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
   }
 }
 
@@ -141,7 +143,7 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
   resultsImage.endDraw();
 }
 
-void drawClassificationToImage(String label, Double confidence) {
+void drawFilterWithClassificationConfidence(String label, Double confidence) {
   // TODO: actually draw instead of printing
   println("classified as " + label + " with confidence " + confidence);
   float thresholdParam = Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
@@ -173,8 +175,9 @@ void draw() {
   translate(halfW, halfH);
   rotate(radians(90));
   imageMode(CENTER);
-  image(video, translationX, translationY, outputW, outputH);
-
+  scale(1, -1);
+  image(video, translationX, -translationY, outputW, outputH);
+  
   if (DRAW_RESULTS) {
     if (receiverThread.newResultsAvailable()) {
       updateResultsImage();
@@ -200,7 +203,7 @@ void draw() {
       }
     }
 
-    image(resultsImage, translationX, translationY, outputW, outputH);
+    // image(resultsImage, translationX, translationY, outputW, outputH);
 
     if (USE_SHADER) {
       if (confidence != null && confidence > 0) {
