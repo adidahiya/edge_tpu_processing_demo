@@ -3,8 +3,8 @@ import gohai.glvideo.*;
 GLCapture video;
 PShader filterEffectShader;
 
-// CONFIGURATION
 // video capture dimensions
+// DONT CHANGE THIS
 int captureW = 640;
 int captureH = 480;
 
@@ -14,8 +14,10 @@ int inputW = captureW;
 int inputH = captureH;
 
 // output dimensions
-int outputW = 1920;
-int outputH = 1080;
+// int outputW = 1920;
+// int outputH = 1080;
+int outputW = 640;
+int outputH = 480;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
@@ -43,8 +45,8 @@ BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
 
 void settings() {
-  int windowW = outputH;
-  int windowH = outputW;
+  int windowW = 480;
+  int windowH = 720;
   size(windowW, windowH, P2D);
 }
 
@@ -159,8 +161,11 @@ void draw() {
   int halfW = outputW / 2;
   int halfH = outputH / 2;
   // purely trial and error values, nothing to see here
-  int translationX = 420;
-  int translationY = 420;
+  // these work for 1920x1080 full resolution
+  //int translationX = 420;
+  //int translationY = 420;
+  int translationX = 120;
+  int translationY = 80;
 
   translate(halfW, halfH);
   rotate(radians(90));
@@ -212,17 +217,33 @@ int getFps() {
 
   if (fpsString != null) {
     return int(fpsString);
-  } else
+  } else {
     return defaultFps;
+  }
 }
 
-void keyPressed() {
-  // video.stop();
+void quitSketch() {
+  video.close();
+  // noLoop();
+
+  inputImage.clear();
+  resultsImage.clear();
+
   try {
     receiverThread.join();
     broadcastThread.join();
   } catch (InterruptedException e) {
     println("stopped receiver / broadcast threads");
+    exit();
+  } finally {
+    exit();
   }
-  exit();
+}
+
+void keyPressed() {
+  quitSketch();
+}
+
+void mousePressed() {
+  quitSketch();
 }

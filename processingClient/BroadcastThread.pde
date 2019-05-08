@@ -133,6 +133,7 @@ class BroadcastThread extends Thread {
 
     PImage croppedImg = img.get(x, y, w, h);
     croppedImg.loadPixels();
+    // TODO: do this in python instead for better perf?
     croppedImg.resize(IMG_SIZE, IMG_SIZE);
 
     bimg.setRGB(0, 0, IMG_SIZE, IMG_SIZE, croppedImg.pixels, 0, IMG_SIZE);
