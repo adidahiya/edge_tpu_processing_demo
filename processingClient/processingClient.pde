@@ -139,6 +139,8 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
 void drawClassificationToImage(String label, Double confidence) {
   // TODO: actually draw instead of printing
   println("classified as " + label + " with confidence " + confidence);
+  float thresholdParam = Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
+  filter(THRESHOLD, 1.0 - thresholdParam);
 }
 
 void draw() {
@@ -197,7 +199,6 @@ void draw() {
 
     if (USE_SHADER) {
       if (confidence != null && confidence > 0) {
-        //filter(THRESHOLD, 1.0 - confidence.floatValue());
         int filterEffectParam = (int) (confidence * 200);
         println("shader value: ", filterEffectParam);
         filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
