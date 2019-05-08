@@ -10,13 +10,13 @@ int captureH = 480;
 
 // the width and height of the input image for
 // object detection
-String broadcastHost = getRemoteBroadcastHost();
-int inputW = broadcastHost == "" ? 300 : captureW;
-int inputH = broadcastHost == "" ? 300 : captureH;
+// String broadcastHost = getRemoteBroadcastHost();
+int inputW = captureW;
+int inputH = captureH;
 
 // output dimensions
-int outputW = 480;
-int outputH = 640;
+int outputW = 640;
+int outputH = 480;
 
 // drawing config
 boolean debugInputImage = false;
@@ -46,7 +46,9 @@ boolean USE_SHADER = false;
 
 
 void settings(){
-  size(outputW, outputH, P2D);
+  int windowW = 480;
+  int windowH = 640;
+  size(windowW, windowH, P2D);
 }
 
 void setup() {
@@ -155,8 +157,18 @@ void draw() {
 
   if (drawResults) {
     // Copy pixels into a PImage object and show on the screen
-    rotate(90);
-    image(video, 0, 0, outputW, outputH);
+    
+    int halfW = outputW / 2;
+    int halfH = outputH / 2;
+
+    translate(halfW, halfH);
+    rotate(radians(90));
+    imageMode(CENTER);
+    translate(120, 0);
+    image(video, -60, 80);
+    // image(video, -halfH, -halfW, halfH, halfW);
+    // translate(0, 0);
+    // image(video, 0, 0, -outputW, -outputH);
 
     if (receiverThread.newResultsAvailable()) {
       updateResultsImage();
@@ -168,7 +180,9 @@ void draw() {
       }
     }
 
-    image(resultsImage, 0, 0, outputW, outputH);
+    image(resultsImage, -60, 80);
+    // image(resultsImage, -halfH, -halfW, halfH, halfW);
+    // image(resultsImage, outputW / 2, outputH / 2);
 
     if (USE_SHADER) {
       if (confidence != null && confidence > 0) {

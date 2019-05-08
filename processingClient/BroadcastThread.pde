@@ -112,6 +112,11 @@ class BroadcastThread extends Thread {
     int w = Math.round(cropBox[2]) - x;
     int h = Math.round(cropBox[3]) - y;
 
+    if (w <= 0 || h <= 0) {
+      println("bad w/h for crop box");
+      return;
+    }
+
     PImage croppedImg = img.get(x, y, w, h);
     croppedImg.loadPixels();
     croppedImg.resize(IMG_SIZE, IMG_SIZE);
