@@ -84,9 +84,7 @@ class ResultsReceivingThread extends Thread {
       classificationConfidence = Double.parseDouble(resultsJson.getString("confidence"));
       classificationLabel = classification;
 
-      println("got classification for request id '" + classificationRequestId + "': " + classificationLabel);
-      println("confidence: " + classificationConfidence);
-      println("");
+      // println("got classification for request id '" + classificationRequestId + "': " + classificationLabel);
       isClassifying = false;
       classificationRequestId = null;
     }

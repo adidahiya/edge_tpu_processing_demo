@@ -70,11 +70,12 @@ def detect_face(engine, sendSocket):
                 continue
 
             # our camera is sideways, so we need to compensate with clockwise rotation
+            image.save('full.jpg', 'JPEG')
             image = image.rotate(-90)
 
             # see https://coral.withgoogle.com/docs/reference/edgetpu.detection.engine/
             results = engine.DetectWithImage(
-                image, threshold=0.50, keep_aspect_ratio=True, relative_coord=False, top_k=3)
+                image, threshold=0.90, keep_aspect_ratio=True, relative_coord=False, top_k=3, resample=Image.BILINEAR)
 
             # logger.debug('time to detect faces: %d\n' %
             #              (time.time() - start_s) * 1000)
@@ -110,10 +111,10 @@ def classify_face(engine, sendSocket):
             image = image.rotate(-90)
 
             logger.info('CLASSIFYING')
-            image.save('crop', 'JPEG')
+            image.save('crop.jpg', 'JPEG')
             # see https://coral.withgoogle.com/docs/reference/edgetpu.classification.engine/
             results = engine.ClassifyWithImage(
-                image, threshold=CLASSIFICATION_THRESHOLD, top_k=3, resample=Image.BILINEAR)
+                image, threshold=CLASSIFICATION_THRESHOLD, top_k=3)
 
             logger.debug('time to classify face: %d\n' %
                          (time.time() - start_s) * 1000)

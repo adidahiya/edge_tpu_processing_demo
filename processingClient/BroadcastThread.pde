@@ -72,7 +72,6 @@ class BroadcastThread extends Thread {
   // Special thanks to: http://ubaa.net/shared/processing/udp/
   // (This example doesn't use the library, but you can!)
   void broadcastFullImage(PImage img) {
-    println("broadcasting full image!");
     // We need a buffered image to do the JPG encoding
     BufferedImage bimg = new BufferedImage(img.width, img.height, BufferedImage.TYPE_INT_RGB);
 

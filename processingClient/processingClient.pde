@@ -123,6 +123,7 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
     float x2 = padAndScale(box[2], paddingW, scaleWH);
     float y2 = padAndScale(box[3], paddingH, scaleWH);
 
+    println("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
     resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
 
     if (label != null) {
@@ -137,7 +138,7 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
 
 void drawClassificationToImage(String label, Double confidence) {
   // TODO: actually draw instead of printing
-  print("classified as " + label + " with confidence " + confidence);
+  println("classified as " + label + " with confidence " + confidence);
 }
 
 void draw() {
@@ -176,7 +177,7 @@ void draw() {
       }
 
       float[] cropBox = boxes[0];
-      
+
       if (cropBox[0] == 0 && cropBox[1] == 0) {
         broadcastThread.disableClassificationBroadcast();
       } else if (receiverThread.isClassifying()) {
