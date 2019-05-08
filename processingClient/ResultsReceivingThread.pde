@@ -136,7 +136,7 @@ class ResultsReceivingThread extends Thread {
     return classificationLabel;
   }
 
-  boolean initClassificationRequest(String id) {
+  void initClassificationRequest(String id) {
     classificationRequestId = id;
     isClassifying = true;
   }

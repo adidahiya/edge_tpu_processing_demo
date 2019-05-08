@@ -3,6 +3,10 @@ import java.awt.image.*;
 import java.net.*;
 import java.io.*;
 
+// a nice idea in theory, but processing is too slow in image rotation so
+// you end up seeing improperly rotated frames in between the video output
+boolean WORLD_ROTATION_COMPENSATION_ENABLED = false;
+
 class BroadcastThread extends Thread {
   // This are the ports we are sending images to
   int clientDetectionPort = 9100;
@@ -68,13 +72,13 @@ class BroadcastThread extends Thread {
   // Special thanks to: http://ubaa.net/shared/processing/udp/
   // (This example doesn't use the library, but you can!)
   void broadcastFullImage(PImage img) {
+    println("broadcasting full image!");
     // We need a buffered image to do the JPG encoding
     BufferedImage bimg = new BufferedImage(img.width, img.height, BufferedImage.TYPE_INT_RGB);
 
-    // compensate for parent app rotation, so we can send the right images to the ML classifier
-    imageMode(CENTER);
-    translate(img.width / 2, img.height / 2);
-    rotate(radians(-90));
+    if (WORLD_ROTATION_COMPENSATION_ENABLED) {
+      compensateForWorldRotation(img.width / 2, img.height / 2);
+    }
 
     // Transfer pixels from local frame to the BufferedImage
     img.loadPixels();
@@ -120,14 +124,13 @@ class BroadcastThread extends Thread {
     int h = Math.round(cropBox[3]) - y;
 
     if (w <= 0 || h <= 0) {
-      println("bad w/h for crop box");
+      println("bad w/h for crop box: " + x + ", " + y + ", " + w + ", " + h);
       return;
     }
 
-    // compensate for parent app rotation, so we can send the right images to the ML classifier
-    imageMode(CENTER);
-    translate(x + w / 2, y + h / 2);
-    rotate(radians(-90));
+    if (WORLD_ROTATION_COMPENSATION_ENABLED) {
+      compensateForWorldRotation(x + w / 2, y + h / 2);
+    }
 
     PImage croppedImg = img.get(x, y, w, h);
     croppedImg.loadPixels();
@@ -145,6 +148,13 @@ class BroadcastThread extends Thread {
       e.printStackTrace();
     }
   }
+}
+
+void compensateForWorldRotation(int translateX, int translateY) {
+  // compensate for parent app rotation, so we can send the right images to the ML classifier
+  imageMode(CENTER);
+  translate(translateX, translateY);
+  rotate(radians(-90));
 }
 
 byte[] createImageBytePacket(BufferedImage bimg) {

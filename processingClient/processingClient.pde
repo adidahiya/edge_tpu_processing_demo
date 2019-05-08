@@ -170,16 +170,23 @@ void draw() {
       updateResultsImage();
       float[][] boxes = receiverThread.getDetectionBoxes();
 
-      if (receiverThread.isClassifying()) {
+      if (boxes.length == 0) {
+        broadcastThread.disableClassificationBroadcast();
+        return;
+      }
+
+      float[] cropBox = boxes[0];
+      
+      if (cropBox[0] == 0 && cropBox[1] == 0) {
+        broadcastThread.disableClassificationBroadcast();
+      } else if (receiverThread.isClassifying()) {
         // skip, we'll use the next detection box when classifier API is available
         println("classifier busy, discarded this face crop");
-        broadcastThread.disableClassificationBroadcast();
-      } else if (boxes.length > 0) {
+        // broadcastThread.disableClassificationBroadcast();
+      } else {
         String requestId = UUID.randomUUID().toString();
         receiverThread.initClassificationRequest(requestId);
-        broadcastThread.initClassificationRequest(requestId, boxes[0]);
-      } else {
-        broadcastThread.disableClassificationBroadcast();
+        broadcastThread.initClassificationRequest(requestId, cropBox);
       }
     }
 
