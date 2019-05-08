@@ -21,6 +21,7 @@ int outputH = 480;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
+boolean DEBUG_DETECTION_BOXES = false;
 boolean DRAW_RESULTS = true;
 boolean USE_SHADER = false;
 
@@ -99,7 +100,9 @@ void updateResultsImage() {
   String classificationLabel = receiverThread.getClassificationLabel();
   Double classificationConfidence = receiverThread.getClassificationConfidence();
 
-  drawDetectionResultsToImage(numDetections, boxes, labels);
+  if (DEBUG_DETECTION_BOXES) {
+    drawDetectionResultsToImage(numDetections, boxes, labels);
+  }
 
   if (classificationLabel != null && classificationLabel != "") {
     drawClassificationToImage(classificationLabel, classificationConfidence);
