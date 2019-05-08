@@ -1,6 +1,6 @@
 import gohai.glvideo.*;
-GLCapture video;
 
+GLCapture video;
 PShader filterEffectShader;
 
 // CONFIGURATION
@@ -14,8 +14,8 @@ int inputW = captureW;
 int inputH = captureH;
 
 // output dimensions
-int outputW = 640;
-int outputH = 480;
+int outputW = 1920;
+int outputH = 1080;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
@@ -43,8 +43,8 @@ BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
 
 void settings() {
-  int windowW = 480;
-  int windowH = 640;
+  int windowW = outputH;
+  int windowH = outputW;
   size(windowW, windowH, P2D);
 }
 
@@ -158,15 +158,14 @@ void draw() {
   // Copy pixels into a PImage object and show on the screen
   int halfW = outputW / 2;
   int halfH = outputH / 2;
+  // purely trial and error values, nothing to see here
+  int translationX = 420;
+  int translationY = 420;
 
   translate(halfW, halfH);
   rotate(radians(90));
   imageMode(CENTER);
-  translate(120, 0);
-  image(video, -60, 80);
-  // image(video, -halfH, -halfW, halfH, halfW);
-  // translate(0, 0);
-  // image(video, 0, 0, -outputW, -outputH);
+  image(video, translationX, translationY, outputW, outputH);
 
   if (DRAW_RESULTS) {
     if (receiverThread.newResultsAvailable()) {
@@ -193,9 +192,7 @@ void draw() {
       }
     }
 
-    image(resultsImage, -60, 80);
-    // image(resultsImage, -halfH, -halfW, halfH, halfW);
-    // image(resultsImage, outputW / 2, outputH / 2);
+    image(resultsImage, translationX, translationY, outputW, outputH);
 
     if (USE_SHADER) {
       if (confidence != null && confidence > 0) {
@@ -217,4 +214,15 @@ int getFps() {
     return int(fpsString);
   } else
     return defaultFps;
+}
+
+void keyPressed() {
+  // video.stop();
+  try {
+    receiverThread.join();
+    broadcastThread.join();
+  } catch (InterruptedException e) {
+    println("stopped receiver / broadcast threads");
+  }
+  exit();
 }
