@@ -6,6 +6,7 @@ import subprocess
 import io
 import logging
 import json
+import math
 import numpy as np
 import socket
 import time
@@ -14,6 +15,7 @@ from edgetpu.detection.engine import DetectionEngine
 from edgetpu.classification.engine import ClassificationEngine
 from PIL import Image
 from threading import Thread
+from mirror_utils import rotate_around_point
 
 
 UDP_IP = '127.0.0.1'
@@ -69,6 +71,8 @@ def detect_face(engine, sendSocket):
                 logger.info('Could not read image')
                 continue
 
+            capture_width, capture_height = image.size
+
             # our camera is sideways, so we need to compensate with clockwise rotation
             image.save('full.jpg', 'JPEG')
             image = image.rotate(-90)
@@ -80,8 +84,19 @@ def detect_face(engine, sendSocket):
             # logger.debug('time to detect faces: %d\n' %
             #              (time.time() - start_s) * 1000)
 
-            output = list(map(lambda result:
-                              {'box': result.bounding_box.flatten().tolist()}, results))
+            rotation_origin = (capture_width / 2, capture_height / 2)
+            rotation_radians = math.pi / 2
+
+            def map_result(result):
+                [x1, y1, x2, y2] = result.bounding_box.flatten().tolist()
+                qx1, qy1 = rotate_around_point(
+                    (x1, y1), rotation_radians, rotation_origin)
+                qx2, qy2 = rotate_around_point(
+                    (x2, y2), rotation_radians, rotation_origin)
+                # simple ordering would give the top right corner, but we want top left
+                return {'box': [qx1, qy2, qx2, qy1]}
+
+            output = list(map(map_result, results))
             logger.debug(output)
 
             message = json.dumps({'detection': output})

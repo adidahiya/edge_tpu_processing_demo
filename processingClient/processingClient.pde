@@ -123,7 +123,7 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
     float x2 = padAndScale(box[2], paddingW, scaleWH);
     float y2 = padAndScale(box[3], paddingH, scaleWH);
 
-    println("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
+    // println("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
     resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
 
     if (label != null) {
