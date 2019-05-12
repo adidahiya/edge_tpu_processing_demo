@@ -19,10 +19,13 @@ int inputH = captureH;
 int outputW = 640;
 int outputH = 480;
 
+//translation coordinates for image rotate
+int translationX = 120;
+int translationY = -80;
+
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
 boolean DEBUG_DETECTION_BOXES = false;
-boolean DRAW_RESULTS = true;
 boolean USE_SHADER = false;
 
 PGraphics inputImage;
@@ -41,6 +44,11 @@ int paddingW = (inputW - resizeW) / 2;
 int paddingH = (inputH - resizeH) / 2;
 
 int defaultFps = 25;
+
+// keeps track of how long it's been since last failure to detect face
+int lastFail = 0;
+// flag used to enable / disable video output. if false, we draw the default mirror state
+boolean shouldDrawVideo = false;
 
 BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
@@ -101,17 +109,19 @@ void updateResultsImage() {
   Double classificationConfidence = receiverThread.getClassificationConfidence();
 
   if (DEBUG_DETECTION_BOXES) {
-    drawDetectionResultsToImage(numDetections, boxes, labels);
+    drawDetectionBoxesToImage(numDetections, boxes, labels);
   }
 
+  println("classification label: ", classificationLabel);
   if (classificationLabel != null && classificationLabel != "") {
     drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
   } else {
-    drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
+    handleDetectionFailed();
+    //drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
   }
 }
 
-void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] labels) {
+void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labels) {
   resultsImage.beginDraw();
   resultsImage.clear();
   resultsImage.noFill();
@@ -144,14 +154,25 @@ void drawDetectionResultsToImage(int numDetections, float[][] boxes, String[] la
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
-  // TODO: actually draw instead of printing
   println("classified as " + label + " with confidence " + confidence);
+
   float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
-  filter(THRESHOLD, 1.0 - thresholdParam);
+  println("threshold param: ", thresholdParam);
+
+  if (thresholdParam < 0.2) {
+    drawDefaultState();
+  } else {
+    println("drawing filters");
+    int thresholdColorValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
+    filter(BLUR, thresholdParam);
+    filter(POSTERIZE, thresholdColorValue);
+    //filter(THRESHOLD, thresholdParam);
+  }
 }
 
 void draw() {
   background(0);
+  noCursor();
   // If the camera is sending new data, capture that data
   if (video.available()) {
     video.read();
@@ -162,59 +183,14 @@ void draw() {
     image(inputImage, 0, 0, inputW, inputH);
   }
 
-  // Copy pixels into a PImage object and show on the screen
-  int halfW = outputW / 2;
-  int halfH = outputH / 2;
-  // purely trial and error values, nothing to see here
-  // these work for 1920x1080 full resolution
-  //int translationX = 420;
-  //int translationY = 420;
-  int translationX = 120;
-  int translationY = 80;
+  if (receiverThread.newResultsAvailable()) {
+    handleVideoAnalysisResults();
+  }
 
-  translate(halfW, halfH);
-  rotate(radians(90));
-  imageMode(CENTER);
-  scale(1, -1);
-  image(video, translationX, -translationY, outputW, outputH);
-  
-  if (DRAW_RESULTS) {
-    if (receiverThread.newResultsAvailable()) {
-      updateResultsImage();
-      float[][] boxes = receiverThread.getDetectionBoxes();
-
-      if (boxes.length == 0) {
-        broadcastThread.disableClassificationBroadcast();
-        return;
-      }
-
-      float[] cropBox = boxes[0];
-
-      if (cropBox[0] == 0 && cropBox[1] == 0) {
-        broadcastThread.disableClassificationBroadcast();
-      } else if (receiverThread.isClassifying()) {
-        // skip, we'll use the next detection box when classifier API is available
-        println("classifier busy, discarded this face crop");
-        // broadcastThread.disableClassificationBroadcast();
-      } else {
-        String requestId = UUID.randomUUID().toString();
-        receiverThread.initClassificationRequest(requestId);
-        broadcastThread.initClassificationRequest(requestId, cropBox);
-      }
-    }
-
-    // image(resultsImage, translationX, translationY, outputW, outputH);
-
-    if (USE_SHADER) {
-      if (confidence != null && confidence > 0) {
-        int filterEffectParam = (int) (confidence * 200);
-        println("shader value: ", filterEffectParam);
-        filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
-      }
-
-      // global shader API
-      shader(filterEffectShader);
-    }
+  if (shouldDrawVideo) {
+    drawVideo();
+  } else {
+    drawDefaultState();
   }
 }
 
@@ -226,6 +202,82 @@ int getFps() {
   } else {
     return defaultFps;
   }
+}
+
+void handleDetectionFailed() {
+    if (millis() - lastFail >= 5000) {
+        shouldDrawVideo = false;
+        lastFail = millis();
+    }
+}
+
+// expects receiver thread to have results
+void handleVideoAnalysisResults() {
+  float[][] boxes = receiverThread.getDetectionBoxes();
+  println("draw results: ", shouldDrawVideo);
+  println("last fail: ", lastFail);
+
+  if (boxes.length == 0) {
+    if (millis() - lastFail >= 5000) {
+      shouldDrawVideo = false;
+      lastFail = millis();
+    }
+    broadcastThread.disableClassificationBroadcast();
+    return;
+  } else {
+    shouldDrawVideo = true;
+  }
+
+  float[] cropBox = boxes[0];
+
+  if (cropBox[0] == 0 && cropBox[1] == 0) {
+    broadcastThread.disableClassificationBroadcast();
+  } else if (receiverThread.isClassifying()) {
+    // skip, we'll use the next detection box when classifier API is available
+    println("classifier busy, discarded this face crop");
+    // broadcastThread.disableClassificationBroadcast();
+  } else {
+    String requestId = UUID.randomUUID().toString();
+    receiverThread.initClassificationRequest(requestId);
+    broadcastThread.initClassificationRequest(requestId, cropBox);
+  }
+}
+
+void drawVideo() {
+  // Copy pixels into a PImage object and show on the screen
+  int halfW = outputW / 2;
+  int halfH = outputH / 2;
+  // purely trial and error values, nothing to see here
+  // these work for 1920x1080 full resolution
+  //int translationX = 420;
+  //int translationY = 420;
+
+  translate(halfW, halfH);
+  rotate(radians(90));
+  imageMode(CENTER);
+  scale(1, -1);
+  image(video, translationX, translationY, outputW, outputH);
+
+  updateResultsImage();
+
+  // image(resultsImage, translationX, translationY, outputW, outputH);
+
+  if (USE_SHADER) {
+    if (confidence != null && confidence > 0) {
+      int filterEffectParam = (int) (confidence * 200);
+      println("shader value: ", filterEffectParam);
+      filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
+    }
+
+    // global shader API
+    shader(filterEffectShader);
+  }
+}
+
+// draws a blank black box, acts as a mirror
+void drawDefaultState() {
+  fill(0);
+  rect(0, 0, outputW, outputH);
 }
 
 void quitSketch() {
