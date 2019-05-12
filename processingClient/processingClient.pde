@@ -67,13 +67,13 @@ void setup() {
   // start threads
   broadcastThread = new BroadcastThread();
   broadcastThread.start();
-  println("Opening TCP connection");
+  println(("Opening TCP connection");
   receiverThread = new ResultsReceivingThread(this);
   receiverThread.start();
 
   // setup graphics
   String[] devices = GLCapture.list();
-  println("Available cameras:");
+  broadcastThread.log("Available cameras:");
   printArray(devices);
 
   // use the first camera
@@ -112,7 +112,7 @@ void updateResultsImage() {
     drawDetectionBoxesToImage(numDetections, boxes, labels);
   }
 
-  println("classification label: ", classificationLabel);
+  broadcastThread.log("classification label: " + classificationLabel);
   if (classificationLabel != null && classificationLabel != "") {
     drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
   } else {
@@ -140,12 +140,12 @@ void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labe
     float x2 = padAndScale(box[2], paddingW, scaleWH);
     float y2 = padAndScale(box[3], paddingH, scaleWH);
 
-    // println("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
+    // broadcastThread.log("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
     resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
 
     if (label != null) {
-      println("label: ", label);
-      // println("confidence", confidence);
+      broadcastThread.log("label: " + label);
+      // broadcastThread.log("confidence", confidence);
       resultsImage.text(label, x1, y1);
     }
   }
@@ -154,15 +154,15 @@ void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labe
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
-  println("classified as " + label + " with confidence " + confidence);
+  broadcastThread.log("classified as " + label + " with confidence " + confidence);
 
   float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
-  println("threshold param: ", thresholdParam);
+  broadcastThread.log("threshold param: " + thresholdParam);
 
   if (thresholdParam < 0.2) {
     drawDefaultState();
   } else {
-    println("drawing filters");
+    broadcastThread.log("drawing filters");
     int thresholdColorValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
     filter(BLUR, thresholdParam);
     filter(POSTERIZE, thresholdColorValue);
@@ -176,7 +176,7 @@ void draw() {
   // If the camera is sending new data, capture that data
   if (video.available()) {
     video.read();
-    broadcastThread.update(captureAndScaleInputImage());
+    broadcastThread.updateImage(captureAndScaleInputImage());
   }
 
   if (DEBUG_INPUT_IMAGE) {
@@ -214,8 +214,8 @@ void handleDetectionFailed() {
 // expects receiver thread to have results
 void handleVideoAnalysisResults() {
   float[][] boxes = receiverThread.getDetectionBoxes();
-  println("draw results: ", shouldDrawVideo);
-  println("last fail: ", lastFail);
+  broadcastThread.log("draw results: " + shouldDrawVideo);
+  broadcastThread.log("last fail: " + lastFail);
 
   if (boxes.length == 0) {
     if (millis() - lastFail >= 5000) {
@@ -234,7 +234,7 @@ void handleVideoAnalysisResults() {
     broadcastThread.disableClassificationBroadcast();
   } else if (receiverThread.isClassifying()) {
     // skip, we'll use the next detection box when classifier API is available
-    println("classifier busy, discarded this face crop");
+    broadcastThread.log("classifier busy, discarded this face crop");
     // broadcastThread.disableClassificationBroadcast();
   } else {
     String requestId = UUID.randomUUID().toString();
@@ -265,7 +265,7 @@ void drawVideo() {
   if (USE_SHADER) {
     if (confidence != null && confidence > 0) {
       int filterEffectParam = (int) (confidence * 200);
-      println("shader value: ", filterEffectParam);
+      broadcastThread.log("shader value: " + filterEffectParam);
       filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
     }
 
@@ -291,7 +291,7 @@ void quitSketch() {
     receiverThread.join();
     broadcastThread.join();
   } catch (InterruptedException e) {
-    println("stopped receiver / broadcast threads");
+    broadcastThread.log("stopped receiver / broadcast threads");
     exit();
   } finally {
     exit();

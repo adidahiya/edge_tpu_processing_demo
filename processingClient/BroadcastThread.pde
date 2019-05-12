@@ -8,9 +8,10 @@ import java.io.*;
 boolean WORLD_ROTATION_COMPENSATION_ENABLED = false;
 
 class BroadcastThread extends Thread {
-  // This are the ports we are sending images to
+  // This are the ports we are sending images / data to
   int clientDetectionPort = 9100;
   int clientClassificationPort = 9101;
+  int logReceiverPort = 9103;
 
   String clientHost = "127.0.0.1";
   String broadcastHost = getRemoteBroadcastHost();
@@ -26,7 +27,7 @@ class BroadcastThread extends Thread {
   String classificationUuid;
 
   BroadcastThread() {
-    //println("Host and port:", host, port);
+    // log("Host and port:", host, port);
     // Setting up the DatagramSocket, requires try/catch
     try {
       ds = new DatagramSocket();
@@ -53,7 +54,28 @@ class BroadcastThread extends Thread {
     }
   }
 
-  void update(PImage img) {
+  void log(String str) {
+    if (!running) {
+      println("socket not connected yet, cannot send logs!");
+      return;
+    }
+
+    println(str);
+
+    byte[] packet = str.getBytes();
+
+    int port = broadcastHost == "" ? logReceiverPort : broadcastPort;
+    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
+
+    // Send JPEG data as a datagram
+    try {
+      ds.send(new DatagramPacket(packet, packet.length, host, port));
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  void updateImage(PImage img) {
     lastImage = img;
     newFrame = true;
   }
@@ -88,7 +110,6 @@ class BroadcastThread extends Thread {
     BufferedOutputStream bos = new BufferedOutputStream(baStream);
 
     // Turn the BufferedImage into a JPG and put it in the BufferedOutputStream
-    // Requires try/catch
     try {
       ImageIO.write(bimg, "jpg", bos);
     } catch (IOException e) {
@@ -98,13 +119,12 @@ class BroadcastThread extends Thread {
     // Get the byte array, which we will send out via UDP!
     byte[] packet = baStream.toByteArray();
 
+    int port = broadcastHost == "" ? clientDetectionPort : broadcastPort;
+    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
+
     // Send JPEG data as a datagram
-    // println("Sending datagram with " + packet.length + " bytes");
     try {
-      ds.send(new DatagramPacket(packet,packet.length, InetAddress.getByName(clientHost), clientDetectionPort));
-      if (broadcastHost != "") {
-        ds.send(new DatagramPacket(packet,packet.length, InetAddress.getByName(broadcastHost), broadcastPort));
-      }
+      ds.send(new DatagramPacket(packet, packet.length, host, port));
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -123,7 +143,7 @@ class BroadcastThread extends Thread {
     int h = Math.round(cropBox[3]) - y;
 
     if (w <= 0 || h <= 0) {
-      println("bad w/h for crop box: " + x + ", " + y + ", " + w + ", " + h);
+      log("bad w/h for crop box: " + x + ", " + y + ", " + w + ", " + h);
       return;
     }
 
@@ -139,11 +159,12 @@ class BroadcastThread extends Thread {
     bimg.setRGB(0, 0, IMG_SIZE, IMG_SIZE, croppedImg.pixels, 0, IMG_SIZE);
     byte[] packet = createImageBytePacket(bimg);
 
+    int port = broadcastHost == "" ? clientClassificationPort : broadcastPort;
+    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
+
     try {
-      ds.send(new DatagramPacket(packet,packet.length, InetAddress.getByName(clientHost), clientClassificationPort));
-      if (broadcastHost != "") {
-        ds.send(new DatagramPacket(packet,packet.length, InetAddress.getByName(broadcastHost), broadcastPort));
-      }
+      log("sending crop image packet of length: " + packet.length);
+      ds.send(new DatagramPacket(packet, packet.length, host, port));
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -155,25 +176,6 @@ void compensateForWorldRotation(int translateX, int translateY) {
   imageMode(CENTER);
   translate(translateX, translateY);
   rotate(radians(-90));
-}
-
-byte[] createImageBytePacket(BufferedImage bimg) {
-    // Need these output streams to get image as bytes for UDP communication
-    ByteArrayOutputStream baStream = new ByteArrayOutputStream();
-    BufferedOutputStream bos = new BufferedOutputStream(baStream);
-
-    // Turn the BufferedImage into a JPG and put it in the BufferedOutputStream
-    // Requires try/catch
-    try {
-      ImageIO.write(bimg, "jpg", bos);
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-
-    // Get the byte array, which we will send out via UDP!
-    byte[] packet = baStream.toByteArray();
-
-    return packet;
 }
 
 String getRemoteBroadcastHost() {

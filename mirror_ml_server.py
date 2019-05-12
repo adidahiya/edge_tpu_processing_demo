@@ -24,10 +24,12 @@ TCP_IP = UDP_IP
 
 DETECTION_RECEIVE_PORT = 9100
 CLASSIFICATION_RECEIVE_PORT = 9101
+LOG_RECEIVE_PORT = 9103
 
 SEND_SOCKET_PORT = 9102
 
 DETECTION_IMAGE_BUFFER_SIZE = 66507
+CLASSIFICATION_IMAGE_BUFFER_SIZE = 66507
 
 face_class_label_ids_to_names = {
     0: 'adi',
@@ -111,7 +113,7 @@ def classify_face(engine, sendSocket):
 
     while 1:
         logger.info('waiting for packet')
-        data, _ = receiveSocket.recvfrom(66507)
+        data, _ = receiveSocket.recvfrom(DETECTION_IMAGE_BUFFER_SIZE)
 
         if (len(data) > 0):
             start_s = time.time()
@@ -157,6 +159,25 @@ def classify_face(engine, sendSocket):
                              CLASSIFICATION_THRESHOLD)
 
 
+def handle_processing_logs():
+    receiveSocket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    receiveSocket.bind((UDP_IP, LOG_RECEIVE_PORT))
+
+    while 1:
+        logger.info('waiting for logs')
+        # TODO: plug in the right packet length number
+        data, _ = receiveSocket.recvfrom(66507)
+
+        if (len(data) > 0):
+            try:
+                log_bytes = io.BytesIO(data).read()
+                log_str = log_bytes.decode('UTF-8')
+                logger.info(' ---- processing log: %s' % log_str)
+            except OSError:
+                logger.info('could not read logs')
+                continue
+
+
 def start_server():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -188,9 +209,12 @@ def start_server():
         target=detect_face, args=(detectionEngine, sendSocket))
     recognitionThread = Thread(
         target=classify_face, args=(recognitionEngine, sendSocket))
+    logReceiverThread = Thread(
+        target=handle_processing_logs, args=())
 
     detectionThread.start()
     recognitionThread.start()
+    logReceiverThread.start()
 
 
 if __name__ == '__main__':
