@@ -29,7 +29,7 @@ LOG_RECEIVE_PORT = 9103
 SEND_SOCKET_PORT = 9102
 
 DETECTION_IMAGE_BUFFER_SIZE = 66507
-CLASSIFICATION_IMAGE_BUFFER_SIZE = 66507
+CLASSIFICATION_IMAGE_BUFFER_SIZE = 7800
 
 face_class_label_ids_to_names = {
     0: 'adi',
@@ -112,7 +112,7 @@ def classify_face(engine, sendSocket):
     CLASSIFICATION_THRESHOLD = 0.6
 
     while 1:
-        logger.info('waiting for packet')
+        logger.debug('waiting for packet')
         data, _ = receiveSocket.recvfrom(DETECTION_IMAGE_BUFFER_SIZE)
 
         if (len(data) > 0):
@@ -127,7 +127,7 @@ def classify_face(engine, sendSocket):
             # our camera is sideways, so we need to compensate with clockwise rotation
             image = image.rotate(-90)
 
-            logger.info('CLASSIFYING')
+            logger.debug('CLASSIFYING')
             image.save('crop.jpg', 'JPEG')
             # see https://coral.withgoogle.com/docs/reference/edgetpu.classification.engine/
             results = engine.ClassifyWithImage(
@@ -137,7 +137,7 @@ def classify_face(engine, sendSocket):
                          (time.time() - start_s) * 1000)
 
             if (len(results) > 0):
-                logger.info(results)
+                logger.debug(results)
 
                 # sort by confidence, take the highest, return the label
                 highest_confidence_result = sorted(
@@ -166,6 +166,7 @@ def handle_processing_logs():
     while 1:
         logger.info('waiting for logs')
         # TODO: plug in the right packet length number
+        # right now it's just an arbitrarily large size which *should* get the whole string
         data, _ = receiveSocket.recvfrom(66507)
 
         if (len(data) > 0):

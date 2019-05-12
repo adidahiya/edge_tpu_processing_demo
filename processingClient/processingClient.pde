@@ -67,7 +67,7 @@ void setup() {
   // start threads
   broadcastThread = new BroadcastThread();
   broadcastThread.start();
-  println(("Opening TCP connection");
+  println("Opening TCP connection");
   receiverThread = new ResultsReceivingThread(this);
   receiverThread.start();
 

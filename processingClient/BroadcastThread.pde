@@ -13,9 +13,7 @@ class BroadcastThread extends Thread {
   int clientClassificationPort = 9101;
   int logReceiverPort = 9103;
 
-  String clientHost = "127.0.0.1";
-  String broadcastHost = getRemoteBroadcastHost();
-  int broadcastPort = getRemoteBroadcastPort();
+  String serverHost = "127.0.0.1";
 
   // This is our object that sends UDP out
   DatagramSocket ds;
@@ -61,15 +59,12 @@ class BroadcastThread extends Thread {
     }
 
     println(str);
-
     byte[] packet = str.getBytes();
-
-    int port = broadcastHost == "" ? logReceiverPort : broadcastPort;
-    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
 
     // Send JPEG data as a datagram
     try {
-      ds.send(new DatagramPacket(packet, packet.length, host, port));
+      // log("sending crop image packet of length: " + packet.length);
+      ds.send(new DatagramPacket(packet, packet.length, InetAddress.getByName(serverHost), logReceiverPort));
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -119,12 +114,9 @@ class BroadcastThread extends Thread {
     // Get the byte array, which we will send out via UDP!
     byte[] packet = baStream.toByteArray();
 
-    int port = broadcastHost == "" ? clientDetectionPort : broadcastPort;
-    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
-
     // Send JPEG data as a datagram
     try {
-      ds.send(new DatagramPacket(packet, packet.length, host, port));
+      ds.send(new DatagramPacket(packet, packet.length, InetAddress.getByName(serverHost), clientDetectionPort));
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -159,12 +151,9 @@ class BroadcastThread extends Thread {
     bimg.setRGB(0, 0, IMG_SIZE, IMG_SIZE, croppedImg.pixels, 0, IMG_SIZE);
     byte[] packet = createImageBytePacket(bimg);
 
-    int port = broadcastHost == "" ? clientClassificationPort : broadcastPort;
-    InetAddress host = InetAddress.getByName(broadcastHost == "" ? clientHost : broadcastHost);
-
     try {
-      log("sending crop image packet of length: " + packet.length);
-      ds.send(new DatagramPacket(packet, packet.length, host, port));
+      // log("sending crop image packet of length: " + packet.length);
+      ds.send(new DatagramPacket(packet, packet.length, InetAddress.getByName(serverHost), clientClassificationPort));
     } catch (Exception e) {
       e.printStackTrace();
     }
