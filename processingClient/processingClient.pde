@@ -25,7 +25,7 @@ int translationY = -80;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
-boolean DEBUG_DETECTION_BOXES = false;
+boolean DEBUG_DETECTION_BOXES = true;
 boolean USE_SHADER = false;
 
 PGraphics inputImage;
@@ -112,7 +112,6 @@ void updateResultsImage() {
     drawDetectionBoxesToImage(numDetections, boxes, labels);
   }
 
-  broadcastThread.log("classification label: " + classificationLabel);
   if (classificationLabel != null && classificationLabel != "") {
     drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
   } else {

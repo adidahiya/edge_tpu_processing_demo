@@ -164,7 +164,7 @@ def handle_processing_logs():
     receiveSocket.bind((UDP_IP, LOG_RECEIVE_PORT))
 
     while 1:
-        logger.info('waiting for logs')
+        logger.debug('waiting for logs')
         # TODO: plug in the right packet length number
         # right now it's just an arbitrarily large size which *should* get the whole string
         data, _ = receiveSocket.recvfrom(66507)
