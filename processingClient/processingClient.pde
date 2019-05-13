@@ -24,11 +24,13 @@ int halfOutputH = outputH / 2;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
-boolean DEBUG_DETECTION_BOXES = false;
+boolean DEBUG_DETECTION_BOXES = true;
+boolean DRAW_BLURRED_FACES = false;
 boolean USE_SHADER = false;
 
 PGraphics inputImage;
 PGraphics resultsImage;
+PGraphics blurImageLayer;
 
 String label;
 Double confidence;
@@ -61,6 +63,7 @@ void settings() {
 void setup() {
   inputImage = createGraphics(inputW, inputH, P2D);
   resultsImage = createGraphics(outputW, outputH, P2D);
+  blurImageLayer = createGraphics(outputW, outputH, P2D);
   frameRate(getFps());
 
   // start threads
@@ -108,19 +111,33 @@ void updateResultsImage() {
   Double classificationConfidence = receiverThread.getClassificationConfidence();
 
   resultsImage.beginDraw();
+  // transparent
   resultsImage.clear();
+  // resultsImage.background(0, 0.0);
+  // resultsImage.background(video);
 
   // HACKHACK: we shouldn't need this?
-  resultsImage.image(video, paddingW, paddingH, resizeW, resizeH);
+  // resultsImage.image(video, paddingW, paddingH, resizeW, resizeH);
+
+  imageMode(CORNER);
+  resultsImage.image(video, 0, 0, captureW, captureH);
 
   if (DEBUG_DETECTION_BOXES) {
     drawDetectionBoxesToResultsImage(numDetections, boxes, labels);
-    drawTestBoxes();
+    // drawTestBoxes();
   }
 
   if (classificationLabel != null && classificationLabel != "") {
-    // drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
-    drawBlurredFacesToResultsImage(numDetections, boxes, classificationConfidence);
+    broadcastThread.log("classified as " + classificationLabel + " (" + classificationConfidence + ")");
+
+    drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
+
+    if (DRAW_BLURRED_FACES) {
+      blurImageLayer.beginDraw();
+      blurImageLayer.clear();
+      drawBlurredFaces(blurImageLayer, numDetections, boxes, classificationConfidence);
+      blurImageLayer.endDraw();
+    }
   } else {
     handleDetectionFailed();
     //drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
@@ -174,8 +191,10 @@ void drawDetectionBoxesToResultsImage(int numDetections, float[][] boxes, String
   }
 }
 
-void drawBlurredFacesToResultsImage(int numFaces, float[][] faceBoxes, Double confidence) {
+void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes, Double confidence) {
   PImage blurredFace;
+  // override param, just take the first face
+  numFaces = 1;
 
   for (int i = 0; i < numFaces; i++) {
     float[] box = faceBoxes[i];
@@ -200,14 +219,12 @@ void drawBlurredFacesToResultsImage(int numFaces, float[][] faceBoxes, Double co
 
     // draw to screen
     println("drawing blur box");
-    resultsImage.image(blurredFace, x, y);
+    layer.image(blurredFace, x1, y1);
     // resultsImage.rect(x, y, w, h);
   }
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
-  broadcastThread.log("classified as " + label + " with confidence " + confidence);
-
   float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
   broadcastThread.log("threshold param: " + thresholdParam);
 
@@ -216,15 +233,13 @@ void drawFilterWithClassificationConfidence(String label, Double confidence) {
   } else {
     broadcastThread.log("drawing filters");
     int thresholdColorValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
-    //int thresholdBlurValue = int(map(thresholdParam, 0.0, 1.0, 5, 30));
-    //filter(BLUR, thresholdBlurValue);
     //filter(POSTERIZE, thresholdColorValue);
-    filter(THRESHOLD, thresholdParam);
+    resultsImage.filter(THRESHOLD, thresholdParam);
   }
 }
 
 void draw() {
-  background(0);
+  background(0, 0.0);
   noCursor();
   // If the camera is sending new data, capture that data
   if (video.available()) {
@@ -243,7 +258,7 @@ void draw() {
   if (shouldDrawVideo) {
     drawVideoAndResultsImage();
   } else {
-    // drawDefaultState();
+    drawDefaultState();
   }
 }
 
@@ -305,15 +320,22 @@ void drawVideoAndResultsImage() {
   //int translationX = 420;
   //int translationY = 420;
 
+  // must do this first, working in the landscape coordinate system
   updateResultsImage();
 
+  // now switch to portrait coordinate system by moving anchor and rotating around center
   translate(halfOutputW, halfOutputH);
   rotate(radians(90));
   imageMode(CENTER);
   scale(1, -1);
 
-  image(video, translationX, translationY, outputW, outputH);
+  // image(video, translationX, translationY, outputW, outputH);
+  // resultsImage.resize(outputH, outputW);
   image(resultsImage, translationX, translationY, outputW, outputH);
+
+  if (DRAW_BLURRED_FACES) {
+    image(blurImageLayer, 0, 0, outputW, outputH);
+  }
 
   if (USE_SHADER) {
     if (confidence != null && confidence > 0) {
@@ -329,8 +351,7 @@ void drawVideoAndResultsImage() {
 
 // draws a blank black box, acts as a mirror
 void drawDefaultState() {
-  fill(0);
-  rect(-200, 200, outputW, outputH);
+  clear();
 }
 
 void quitSketch() {
