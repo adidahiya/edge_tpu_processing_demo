@@ -24,16 +24,13 @@ int halfOutputH = outputH / 2;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
-boolean DEBUG_DETECTION_BOXES = true;
+boolean DEBUG_DETECTION_BOXES = false;
 boolean DRAW_BLURRED_FACES = false;
-boolean USE_SHADER = false;
+boolean USE_SHADER = true;
 
 PGraphics inputImage;
 PGraphics resultsImage;
 PGraphics blurImageLayer;
-
-String label;
-Double confidence;
 
 float aspect = captureW * 1.0 / captureH;
 
@@ -53,6 +50,9 @@ boolean shouldDrawVideo = false;
 
 BroadcastThread broadcastThread;
 ResultsReceivingThread receiverThread;
+
+// for shader
+float thresholdParam = 0.0;
 
 void settings() {
   int windowW = 480;
@@ -84,8 +84,7 @@ void setup() {
   video.start();
 
   if (USE_SHADER) {
-    filterEffectShader = loadShader("../shaders/pixelate.glsl");
-    filterEffectShader.set("pixels", 600, 600);
+    filterEffectShader = loadShader("pixelate.glsl");
   }
 }
 
@@ -135,7 +134,7 @@ void updateResultsImage() {
     if (DRAW_BLURRED_FACES) {
       blurImageLayer.beginDraw();
       blurImageLayer.clear();
-      drawBlurredFaces(blurImageLayer, numDetections, boxes, classificationConfidence);
+      drawBlurredFaces(blurImageLayer, numDetections, boxes);
       blurImageLayer.endDraw();
     }
   } else {
@@ -182,16 +181,10 @@ void drawDetectionBoxesToResultsImage(int numDetections, float[][] boxes, String
 
     broadcastThread.log("drawing box at " + x + ", " + y);
     resultsImage.rect(x - 1, y - 1, w + 2, h + 2);
-
-    if (label != null) {
-      broadcastThread.log("label: " + label);
-      // broadcastThread.log("confidence", confidence);
-      resultsImage.text(label, x1, y1);
-    }
   }
 }
 
-void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes, Double confidence) {
+void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes) {
   PImage blurredFace;
   // override param, just take the first face
   numFaces = 1;
@@ -225,22 +218,35 @@ void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes, Double
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
-  float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.6, 1.0, 0.0, 1.0));
+  thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.6, 1.0, 0.0, 1.0));
   broadcastThread.log("threshold param: " + thresholdParam);
 
-  if (thresholdParam < 0.01) {
+  if (thresholdParam < 0.1) {
+    // resetShader();
     drawDefaultState();
   } else {
-    broadcastThread.log("drawing filters");
-    int thresholdLumaValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
-    //filter(POSTERIZE, thresholdLumaValue);
-    resultsImage.filter(THRESHOLD, thresholdParam);
+    // broadcastThread.log("drawing filters");
+    // int thresholdLumaValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
+    // resultsImage.filter(THRESHOLD, thresholdParam);
   }
+
 }
 
 void draw() {
   background(0, 0.0);
   noCursor();
+
+  if (USE_SHADER) {
+    filterEffectShader.set("pixels", thresholdParam, thresholdParam);
+    // filterEffectShader.set("pixelsPerRow", 10);
+    if (thresholdParam < 0.1) {
+      resetShader();
+    } else {
+      broadcastThread.log("drawing with shader");
+      shader(filterEffectShader);
+    }
+  }
+
   // If the camera is sending new data, capture that data
   if (video.available()) {
     video.read();
@@ -339,16 +345,16 @@ void drawVideoAndResultsImage() {
     image(blurImageLayer, 0, 0, outputW, outputH);
   }
 
-  if (USE_SHADER) {
-    if (confidence != null && confidence > 0) {
-      int filterEffectParam = (int) (confidence * 200);
-      broadcastThread.log("shader value: " + filterEffectParam);
-      filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
-    }
+  //if (USE_SHADER) {
+  //  if (confidence != null && confidence > 0) {
+  //    int filterEffectParam = (int) (confidence * 200);
+  //    broadcastThread.log("shader value: " + filterEffectParam);
+  //    filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
+  //  }
 
-    // global shader API
-    shader(filterEffectShader);
-  }
+  //  // global shader API
+  //  shader(filterEffectShader);
+  //}
 }
 
 // draws a blank black box, acts as a mirror
