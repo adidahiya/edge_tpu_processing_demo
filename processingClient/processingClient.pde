@@ -2,6 +2,7 @@ import gohai.glvideo.*;
 
 GLCapture video;
 PShader filterEffectShader;
+PShader thresholdShader;
 
 // video capture dimensions
 // DONT CHANGE THIS
@@ -87,6 +88,7 @@ void setup() {
 
   if (USE_SHADER) {
     filterEffectShader = loadShader("halftone.glsl");
+    thresholdShader = loadShader("threshold.glsl");
   }
 }
 
@@ -131,7 +133,7 @@ void updateResultsImage() {
   if (classificationLabel != null && classificationLabel != "") {
     broadcastThread.log("classified as " + classificationLabel + " (" + classificationConfidence + ")");
 
-    drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
+    setThresholdParamWithConfidence(classificationLabel, classificationConfidence);
 
     if (DRAW_BLURRED_FACES) {
       blurImageLayer.beginDraw();
@@ -141,7 +143,6 @@ void updateResultsImage() {
     }
   } else {
     handleDetectionFailed();
-    //drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
   }
 
   resultsImage.endDraw();
@@ -219,19 +220,12 @@ void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes) {
   }
 }
 
-void drawFilterWithClassificationConfidence(String label, Double confidence) {
+void setThresholdParamWithConfidence(String label, Double confidence) {
   thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.6, 1.0, 0.0, 1.0));
   broadcastThread.log("threshold param: " + thresholdParam);
-
-  if (thresholdParam < 0.1) {
-    // resetShader();
-    drawDefaultState();
-  } else {
-    // broadcastThread.log("drawing filters");
-    // int thresholdLumaValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
-    // resultsImage.filter(THRESHOLD, thresholdParam);
-  }
 }
+
+boolean isFadingOut = false;
 
 void draw() {
   background(0, 0.0);
@@ -240,12 +234,17 @@ void draw() {
   float threshold = 0.25;
 
   if (USE_SHADER) {
-    filterEffectShader.set("pixelsPerRow", Math.round(100.0 / thresholdParam));
+    filterEffectShader.set("pixelsPerRow", Math.round(300.0 / thresholdParam));
+
     if (thresholdParam < threshold) {
+      thresholdShader.set("midPoint", 1 - thresholdParam);
       // resultsImage.resetShader();
       shouldDrawVideo = false;
+      resultsImage.shader(thresholdShader);
+      //delay(100);
     } else {
       broadcastThread.log("drawing with shader");
+      thresholdShader.set("midPoint", 0.5);
       resultsImage.shader(filterEffectShader);
     }
   }
@@ -264,10 +263,17 @@ void draw() {
     handleVideoAnalysisResults();
   }
 
+  // if (isFadingOut || !shouldDrawVideo) {
+  //   drawDefaultState();
+  // } else {
+  //   drawVideoAndResultsImage();
+  // }
+
   if (shouldDrawVideo) {
     drawVideoAndResultsImage();
   } else {
-    drawDefaultState();
+    // skip this, let threshold shader handle it
+    // drawDefaultState();
   }
 }
 
@@ -347,21 +353,10 @@ void drawVideoAndResultsImage() {
   if (DRAW_BLURRED_FACES) {
     image(blurImageLayer, 0, 0, outputW, outputH);
   }
-
-  //if (USE_SHADER) {
-  //  if (confidence != null && confidence > 0) {
-  //    int filterEffectParam = (int) (confidence * 200);
-  //    broadcastThread.log("shader value: " + filterEffectParam);
-  //    filterEffectShader.set("pixels", filterEffectParam, filterEffectParam);
-  //  }
-
-  //  // global shader API
-  //  shader(filterEffectShader);
-  //}
 }
 
 int fadeOutStarted = 0;
-int FADE_TIMEOUT_FRAMES = 30;
+int FADE_TIMEOUT_FRAMES = 40;
 
 // draws a blank black box, acts as a mirror
 void drawDefaultState() {
@@ -370,15 +365,17 @@ void drawDefaultState() {
   if (framesSinceFadeOutStarted > FADE_TIMEOUT_FRAMES) {
     clear();
     fadeOutStarted = 0;
+    isFadingOut = false;
     return;
   }
 
+  isFadingOut = true;
   fadeLayer.beginDraw();
   fadeLayer.clear();
   float alpha = 1 - (framesSinceFadeOutStarted / float(FADE_TIMEOUT_FRAMES));
   // fadeLayer.fill(0.0, alpha);
   broadcastThread.log("fade layer at opacity " + alpha);
-  fadeLayer.fill(0.0, 0.25);
+  fadeLayer.fill(0.0, alpha);
 
   if (fadeOutStarted == 0) {
     fadeOutStarted = frameCount;
