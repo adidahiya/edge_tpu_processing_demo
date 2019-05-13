@@ -110,6 +110,9 @@ void updateResultsImage() {
   resultsImage.beginDraw();
   resultsImage.clear();
 
+  // HACKHACK: we shouldn't need this?
+  resultsImage.image(video, paddingW, paddingH, resizeW, resizeH);
+
   if (DEBUG_DETECTION_BOXES) {
     drawDetectionBoxesToResultsImage(numDetections, boxes, labels);
     drawTestBoxes();
@@ -189,7 +192,11 @@ void drawBlurredFacesToResultsImage(int numFaces, float[][] faceBoxes, Double co
     int h = int(y2 - y1);
 
     blurredFace = inputImage.get(x, y, w, h);
-    blurredFace.filter(BLUR, 10);
+    // HACKHACK
+    blurredFace.resize(h, w);
+
+    int blurAmount = 8;
+    blurredFace.filter(BLUR, blurAmount);
 
     // draw to screen
     println("drawing blur box");
