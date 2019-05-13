@@ -31,6 +31,7 @@ boolean USE_SHADER = true;
 PGraphics inputImage;
 PGraphics resultsImage;
 PGraphics blurImageLayer;
+PGraphics fadeLayer;
 
 float aspect = captureW * 1.0 / captureH;
 
@@ -64,6 +65,7 @@ void setup() {
   inputImage = createGraphics(inputW, inputH, P2D);
   resultsImage = createGraphics(outputW, outputH, P2D);
   blurImageLayer = createGraphics(outputW, outputH, P2D);
+  fadeLayer = createGraphics(outputW, outputH, P2D);
   frameRate(getFps());
 
   // start threads
@@ -84,7 +86,7 @@ void setup() {
   video.start();
 
   if (USE_SHADER) {
-    filterEffectShader = loadShader("pixelate.glsl");
+    filterEffectShader = loadShader("halftone.glsl");
   }
 }
 
@@ -229,21 +231,22 @@ void drawFilterWithClassificationConfidence(String label, Double confidence) {
     // int thresholdLumaValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
     // resultsImage.filter(THRESHOLD, thresholdParam);
   }
-
 }
 
 void draw() {
   background(0, 0.0);
   noCursor();
 
+  float threshold = 0.25;
+
   if (USE_SHADER) {
-    filterEffectShader.set("pixels", thresholdParam, thresholdParam);
-    // filterEffectShader.set("pixelsPerRow", 10);
-    if (thresholdParam < 0.1) {
-      resetShader();
+    filterEffectShader.set("pixelsPerRow", Math.round(100.0 / thresholdParam));
+    if (thresholdParam < threshold) {
+      // resultsImage.resetShader();
+      shouldDrawVideo = false;
     } else {
       broadcastThread.log("drawing with shader");
-      shader(filterEffectShader);
+      resultsImage.shader(filterEffectShader);
     }
   }
 
@@ -357,9 +360,34 @@ void drawVideoAndResultsImage() {
   //}
 }
 
+int fadeOutStarted = 0;
+int FADE_TIMEOUT_FRAMES = 30;
+
 // draws a blank black box, acts as a mirror
 void drawDefaultState() {
-  clear();
+  int framesSinceFadeOutStarted = frameCount - fadeOutStarted;
+
+  if (framesSinceFadeOutStarted > FADE_TIMEOUT_FRAMES) {
+    clear();
+    fadeOutStarted = 0;
+    return;
+  }
+
+  fadeLayer.beginDraw();
+  fadeLayer.clear();
+  float alpha = 1 - (framesSinceFadeOutStarted / float(FADE_TIMEOUT_FRAMES));
+  // fadeLayer.fill(0.0, alpha);
+  broadcastThread.log("fade layer at opacity " + alpha);
+  fadeLayer.fill(0.0, 0.25);
+
+  if (fadeOutStarted == 0) {
+    fadeOutStarted = frameCount;
+  }
+
+  fadeLayer.noStroke();
+  fadeLayer.rect(0, 0, outputW, outputH);
+  image(fadeLayer, 0, 0);
+  fadeLayer.endDraw();
 }
 
 void quitSketch() {
