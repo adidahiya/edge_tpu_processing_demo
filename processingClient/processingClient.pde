@@ -225,15 +225,15 @@ void drawBlurredFaces(PGraphics layer, int numFaces, float[][] faceBoxes, Double
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
-  float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
+  float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.6, 1.0, 0.0, 1.0));
   broadcastThread.log("threshold param: " + thresholdParam);
 
   if (thresholdParam < 0.01) {
     drawDefaultState();
   } else {
     broadcastThread.log("drawing filters");
-    int thresholdColorValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
-    //filter(POSTERIZE, thresholdColorValue);
+    int thresholdLumaValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
+    //filter(POSTERIZE, thresholdLumaValue);
     resultsImage.filter(THRESHOLD, thresholdParam);
   }
 }
@@ -273,9 +273,11 @@ int getFps() {
 }
 
 void handleDetectionFailed() {
-  if (millis() - lastFail >= 5000) {
+  int now = millis();
+
+  if (now - lastFail >= 5000) {
     shouldDrawVideo = false;
-    lastFail = millis();
+    lastFail = now;
   }
 }
 
