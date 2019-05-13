@@ -129,10 +129,15 @@ class BroadcastThread extends Thread {
     BufferedImage bimg = new BufferedImage(IMG_SIZE, IMG_SIZE, BufferedImage.TYPE_INT_RGB);
     img.loadPixels();
 
-    int x = Math.round(cropBox[0]);
-    int y = Math.round(cropBox[1]);
-    int w = Math.round(cropBox[2]) - x;
-    int h = Math.round(cropBox[3]) - y;
+    float x1 = cropBox[0];
+    float y1 = cropBox[1];
+    float x2 = cropBox[2];
+    float y2 = cropBox[3];
+
+    int x = int(x1);
+    int y = int(y1);
+    int w = int(x2 - x1);
+    int h = int(y2 - y1);
 
     if (w <= 0 || h <= 0) {
       log("bad w/h for crop box: " + x + ", " + y + ", " + w + ", " + h);

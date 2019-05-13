@@ -19,13 +19,12 @@ int inputH = captureH;
 int outputW = 640;
 int outputH = 480;
 
-//translation coordinates for image rotate
-int translationX = 120;
-int translationY = -80;
+int halfOutputW = outputW / 2;
+int halfOutputH = outputH / 2;
 
 // drawing config
 boolean DEBUG_INPUT_IMAGE = false;
-boolean DEBUG_DETECTION_BOXES = true;
+boolean DEBUG_DETECTION_BOXES = false;
 boolean USE_SHADER = false;
 
 PGraphics inputImage;
@@ -108,22 +107,40 @@ void updateResultsImage() {
   String classificationLabel = receiverThread.getClassificationLabel();
   Double classificationConfidence = receiverThread.getClassificationConfidence();
 
+  resultsImage.beginDraw();
+  resultsImage.clear();
+
   if (DEBUG_DETECTION_BOXES) {
-    drawDetectionBoxesToImage(numDetections, boxes, labels);
+    drawDetectionBoxesToResultsImage(numDetections, boxes, labels);
+    drawTestBoxes();
   }
 
   if (classificationLabel != null && classificationLabel != "") {
-    drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
+    // drawFilterWithClassificationConfidence(classificationLabel, classificationConfidence);
+    drawBlurredFacesToResultsImage(numDetections, boxes, classificationConfidence);
   } else {
     handleDetectionFailed();
     //drawFilterWithClassificationConfidence(classificationLabel, new Double(0.5));
   }
+
+  resultsImage.endDraw();
 }
 
-void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labels) {
-  resultsImage.beginDraw();
-  resultsImage.clear();
+void drawTestBoxes() {
+  resultsImage.strokeWeight(2);
+
+  int[][] boxes = {{0, 0, #00ff00}, {50, 50, #0000ff}, {100, 100, #00ffff}};
+
+  for (int i = 0; i < 3; i++) {
+    int[] box = boxes[i];
+    resultsImage.stroke(box[2]);
+    resultsImage.rect(box[0], box[1], 20, 20);
+  }
+}
+
+void drawDetectionBoxesToResultsImage(int numDetections, float[][] boxes, String[] labels) {
   resultsImage.noFill();
+  // red stroke
   resultsImage.stroke(#ff0000);
   resultsImage.strokeWeight(2);
   resultsImage.textSize(18);
@@ -138,9 +155,13 @@ void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labe
     float y1 = padAndScale(box[1], paddingH, scaleWH);
     float x2 = padAndScale(box[2], paddingW, scaleWH);
     float y2 = padAndScale(box[3], paddingH, scaleWH);
+    int x = int(x1);
+    int y = int(y1);
+    int w = int(x2 - x1);
+    int h = int(y2 - y1);
 
-    // broadcastThread.log("detected " + x1 + ", " + y1 + ", " + x2 + ", " + y2);
-    resultsImage.rect(x1, y1, x2 - x1, y2 - y1);
+    broadcastThread.log("drawing box at " + x + ", " + y);
+    resultsImage.rect(x - 1, y - 1, w + 2, h + 2);
 
     if (label != null) {
       broadcastThread.log("label: " + label);
@@ -148,8 +169,33 @@ void drawDetectionBoxesToImage(int numDetections, float[][] boxes, String[] labe
       resultsImage.text(label, x1, y1);
     }
   }
+}
 
-  resultsImage.endDraw();
+void drawBlurredFacesToResultsImage(int numFaces, float[][] faceBoxes, Double confidence) {
+  PImage blurredFace;
+
+  for (int i = 0; i < numFaces; i++) {
+    float[] box = faceBoxes[i];
+
+    float scaleWH = captureW * 1.0 / inputW;
+
+    float x1 = padAndScale(box[0], paddingW, scaleWH);
+    float y1 = padAndScale(box[1], paddingH, scaleWH);
+    float x2 = padAndScale(box[2], paddingW, scaleWH);
+    float y2 = padAndScale(box[3], paddingH, scaleWH);
+    int x = int(x1);
+    int y = int(y1);
+    int w = int(x2 - x1);
+    int h = int(y2 - y1);
+
+    blurredFace = inputImage.get(x, y, w, h);
+    blurredFace.filter(BLUR, 10);
+
+    // draw to screen
+    println("drawing blur box");
+    resultsImage.image(blurredFace, x, y);
+    // resultsImage.rect(x, y, w, h);
+  }
 }
 
 void drawFilterWithClassificationConfidence(String label, Double confidence) {
@@ -158,14 +204,15 @@ void drawFilterWithClassificationConfidence(String label, Double confidence) {
   float thresholdParam = 1.0 - Math.max(0.0, map(confidence.floatValue(), 0.5, 1.0, 0.0, 1.0));
   broadcastThread.log("threshold param: " + thresholdParam);
 
-  if (thresholdParam < 0.2) {
+  if (thresholdParam < 0.01) {
     drawDefaultState();
   } else {
     broadcastThread.log("drawing filters");
     int thresholdColorValue = int(map(thresholdParam, 0.0, 1.0, 2, 255));
-    filter(BLUR, thresholdParam);
-    filter(POSTERIZE, thresholdColorValue);
-    //filter(THRESHOLD, thresholdParam);
+    //int thresholdBlurValue = int(map(thresholdParam, 0.0, 1.0, 5, 30));
+    //filter(BLUR, thresholdBlurValue);
+    //filter(POSTERIZE, thresholdColorValue);
+    filter(THRESHOLD, thresholdParam);
   }
 }
 
@@ -187,9 +234,9 @@ void draw() {
   }
 
   if (shouldDrawVideo) {
-    drawVideo();
+    drawVideoAndResultsImage();
   } else {
-    drawDefaultState();
+    // drawDefaultState();
   }
 }
 
@@ -204,17 +251,16 @@ int getFps() {
 }
 
 void handleDetectionFailed() {
-    if (millis() - lastFail >= 5000) {
-        shouldDrawVideo = false;
-        lastFail = millis();
-    }
+  if (millis() - lastFail >= 5000) {
+    shouldDrawVideo = false;
+    lastFail = millis();
+  }
 }
 
 // expects receiver thread to have results
 void handleVideoAnalysisResults() {
   float[][] boxes = receiverThread.getDetectionBoxes();
-  broadcastThread.log("draw results: " + shouldDrawVideo);
-  broadcastThread.log("last fail: " + lastFail);
+  broadcastThread.log(shouldDrawVideo ? "drawing video" : "not drawing" + ", last fail at: " + lastFail);
 
   if (boxes.length == 0) {
     if (millis() - lastFail >= 5000) {
@@ -242,24 +288,25 @@ void handleVideoAnalysisResults() {
   }
 }
 
-void drawVideo() {
-  // Copy pixels into a PImage object and show on the screen
-  int halfW = outputW / 2;
-  int halfH = outputH / 2;
+// copy pixels into a PImage object and show on the screen
+void drawVideoAndResultsImage() {
   // purely trial and error values, nothing to see here
+  int translationX = 120;
+  int translationY = -80;
+
   // these work for 1920x1080 full resolution
   //int translationX = 420;
   //int translationY = 420;
 
-  translate(halfW, halfH);
+  updateResultsImage();
+
+  translate(halfOutputW, halfOutputH);
   rotate(radians(90));
   imageMode(CENTER);
   scale(1, -1);
+
   image(video, translationX, translationY, outputW, outputH);
-
-  updateResultsImage();
-
-  // image(resultsImage, translationX, translationY, outputW, outputH);
+  image(resultsImage, translationX, translationY, outputW, outputH);
 
   if (USE_SHADER) {
     if (confidence != null && confidence > 0) {
@@ -276,7 +323,7 @@ void drawVideo() {
 // draws a blank black box, acts as a mirror
 void drawDefaultState() {
   fill(0);
-  rect(0, 0, outputW, outputH);
+  rect(-200, 200, outputW, outputH);
 }
 
 void quitSketch() {

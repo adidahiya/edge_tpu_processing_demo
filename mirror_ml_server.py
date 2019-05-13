@@ -29,7 +29,7 @@ LOG_RECEIVE_PORT = 9103
 SEND_SOCKET_PORT = 9102
 
 DETECTION_IMAGE_BUFFER_SIZE = 66507
-CLASSIFICATION_IMAGE_BUFFER_SIZE = 7800
+CLASSIFICATION_IMAGE_BUFFER_SIZE = 66507  # 7800
 
 face_class_label_ids_to_names = {
     0: 'adi',
@@ -60,8 +60,9 @@ def detect_face(engine, sendSocket):
 
     logger.info('listening on %d ...' % DETECTION_RECEIVE_PORT)
 
+    DETECTION_THRESHOLD = 0.95
+
     while 1:
-        logger.debug('waiting for packet')
         data, _ = receiveSocket.recvfrom(DETECTION_IMAGE_BUFFER_SIZE)
 
         if (len(data) > 0):
@@ -81,7 +82,7 @@ def detect_face(engine, sendSocket):
 
             # see https://coral.withgoogle.com/docs/reference/edgetpu.detection.engine/
             results = engine.DetectWithImage(
-                image, threshold=0.90, keep_aspect_ratio=True, relative_coord=False, top_k=3, resample=Image.BILINEAR)
+                image, threshold=DETECTION_THRESHOLD, keep_aspect_ratio=True, relative_coord=False, top_k=3, resample=Image.BILINEAR)
 
             # logger.debug('time to detect faces: %d\n' %
             #              (time.time() - start_s) * 1000)
@@ -112,7 +113,6 @@ def classify_face(engine, sendSocket):
     CLASSIFICATION_THRESHOLD = 0.6
 
     while 1:
-        logger.debug('waiting for packet')
         data, _ = receiveSocket.recvfrom(DETECTION_IMAGE_BUFFER_SIZE)
 
         if (len(data) > 0):
@@ -127,7 +127,7 @@ def classify_face(engine, sendSocket):
             # our camera is sideways, so we need to compensate with clockwise rotation
             image = image.rotate(-90)
 
-            logger.debug('CLASSIFYING')
+            logger.info('CLASSIFYING')
             image.save('crop.jpg', 'JPEG')
             # see https://coral.withgoogle.com/docs/reference/edgetpu.classification.engine/
             results = engine.ClassifyWithImage(
@@ -173,7 +173,7 @@ def handle_processing_logs():
             try:
                 log_bytes = io.BytesIO(data).read()
                 log_str = log_bytes.decode('UTF-8')
-                logger.info(' ---- processing log: %s' % log_str)
+                logger.info('Processing says: %s' % log_str)
             except OSError:
                 logger.info('could not read logs')
                 continue
